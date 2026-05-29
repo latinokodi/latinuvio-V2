@@ -512,21 +512,6 @@
       ]
     },
     {
-      "id": "jkanime",
-      "name": "JKAnime",
-      "description": "Anime en VOSE desde JKAnime.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/jkanime.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "repelishd",
       "name": "RepelisHD",
       "description": "Películas y series desde RepelisHD.",
