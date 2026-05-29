@@ -1,0 +1,437 @@
+{
+  "name": "latinuvio-V2.0",
+  "version": "0.2.0",
+  "scrapers": [
+    {
+      "id": "embed69",
+      "name": "Embed69",
+      "description": "Streams en Latino/Español/Subtitulado desde Embed69. StreamWish, VOE. (Última versión)",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/embed69.js",
+      "enabled": true,
+      "logo": "https://play-lh.googleusercontent.com/5oy8Mdjfj1sEzBWe5WxuQ_8MqFRC6Yu-PM2c4QkXEN_isAQvqrWeMwZV7z3__lDm8Q",
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "sololatino",
+      "name": "SoloLatino",
+      "description": "Servidores universales de alta gama con Player+ (Directo).",
+      "version": "3.3.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/sololatino.js",
+      "enabled": true,
+      "logo": "https://sololatino.net/images/logo.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "pelisgo",
+      "name": "PelisGo",
+      "description": "Descargas directas y streaming de alta fidelidad.",
+      "version": "9.1.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelisgo.js",
+      "enabled": true,
+      "logo": "https://pelisgo.online/icon.webp",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "pelisplus",
+      "name": "PelisPlusHD",
+      "description": "Películas y series en espanol latino desde PelisPlusHD.la",
+      "version": "12.7.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelisplus.js",
+      "enabled": true,
+      "logo": "https://www.pelisplushd.la/images/logo/logo5.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "hackstore",
+      "name": "HackStore",
+      "description": "API Nativa de Películas en HD",
+      "version": "12.9.2",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/hackstore2.js",
+      "enabled": true,
+      "logo": "https://hackstore.mx/wp-content/uploads/2025/07/cropped-fire-1-180x180.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "pelispanda",
+      "name": "PelisPanda",
+      "description": "Películas y series directo desde pelispanda.org",
+      "version": "12.9.8",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelispanda.js",
+      "enabled": true,
+      "logo": "https://pelispanda.org/wp-content/themes/wpreact/public/image/logo.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "cinecalidad",
+      "name": "CineCalidad",
+      "description": "Películas en Latino desde CineCalidad. Vimeos, VOE, Filemoon, StreamWish. (Última versión)",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie"
+      ],
+      "filename": "providers/cinecalidad.js",
+      "enabled": true,
+      "logo": "https://image.firstory-cdn.me/Avatar/cm0dkng7s07o601qjdh958yiy/1724832356858.jpg",
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "seriesmetro",
+      "name": "SeriesMetro",
+      "description": "Streams en Latino desde SeriesMetro. Fastream. (Última versión)",
+      "version": "1.1.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/seriesmetro.js",
+      "enabled": true,
+      "logo": "https://www3.seriesmetro.net/wp-content/uploads/2024/04/cropped-Favicon2-180x180.png",
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "xupalace",
+      "name": "Xupalace",
+      "description": "Streams en Latino desde Xupalace. StreamWish, VOE, Vidhide. (Última versión)",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/xupalace.js",
+      "enabled": true,
+      "logo": "https://static.vecteezy.com/system/resources/previews/004/532/988/non_2x/cinema-set-in-flat-design-style-popcorn-soda-or-coffee-movie-clapper-and-reel-vector.jpg",
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "fuegocine",
+      "name": "FuegoCine",
+      "description": "Películas y series con enlaces directos y alta velocidad.",
+      "version": "7.0.3",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/fuegocine.js",
+      "enabled": true,
+      "logo": "https://www.fuegocine.com/favicon.ico",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "playhubmax",
+      "name": "PlayHubMax",
+      "description": "API privada con contenido premium en Latino.",
+      "version": "2.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/playhubmax.js",
+      "enabled": true,
+      "logo": "https://i.ibb.co/qqKWJyk/logo-rayo-morado-fondo-blanco-121452-121.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "tioplus",
+      "name": "TioPlus",
+      "description": "Películas y series en HD (Latino) con bypass de doble Base64.",
+      "version": "2.1.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/tioplus.js",
+      "enabled": true,
+      "logo": "https://tioplus.app/images/logo2.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "cinemacity",
+      "name": "CinemaCity",
+      "description": "Películas de estreno (Filtro Estricto Latino).",
+      "version": "1.0.4",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/cinemacity.js",
+      "enabled": true,
+      "logo": "https://cinemacity.cc/templates/cinemacity/images/favicon.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": false
+    },
+    {
+      "id": "brazucaplay",
+      "name": "BrazucaPlay",
+      "description": "Películas y series en Latino (vía Cuevana/Kayo).",
+      "version": "1.0.1",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/brazucaplay.js",
+      "enabled": true,
+      "logo": "https://i.postimg.cc/9F6zdnyb/brazucaplay.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "lamovie",
+      "name": "LaMovie",
+      "description": "Proveedor premium con enlaces directos en 1080p y enfoque Latino. (Última versión)",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/lamovie.js",
+      "enabled": true,
+      "logo": "https://lamovie.cc/img/favicon.png",
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "videasy",
+      "name": "VidEasy Latino",
+      "description": "Premium streams via OnionPlay & Cuevana (1080p Latino).",
+      "version": "2.8.1",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/videasy.js",
+      "enabled": true,
+      "logo": "https://player.videasy.net/favicon.ico",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "cuevanaubd",
+      "name": "Cuevana UBD",
+      "description": "Proveedor rapido JSON nativo de Cuevana.",
+      "version": "1.2.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/cuevana.js",
+      "enabled": true,
+      "logo": "https://i.postimg.cc/4dJGhTmW/Gemini-Generated-Image-w81fzfw81fzfw81f.png",
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
+    },
+    {
+      "id": "doramasflix",
+      "name": "DoramasFlix",
+      "description": "Doramas Coreanos, Chinos, Japoneses y Asiaticos en Espanol. Estructura oficial Nuvio con extracción múltiple.",
+      "version": "1.2.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/doramasflix.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
+    },
+    {
+      "id": "vimeus",
+      "name": "Vimeus",
+      "description": "Películas, series y anime en Latino/Español vía Vimeus. Múltiples servidores (VOE, StreamWish, Filemoon, etc).",
+      "version": "1.0.1",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/vimeus.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
+    },
+    {
+      "id": "zoowomaniacos",
+      "name": "Zoowomaniacos",
+      "description": "Películas de culto, cine de autor y difíciles de encontrar. OkRu.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie"
+      ],
+      "filename": "providers/zoowomaniacos.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "peliserieshoy",
+      "name": "PelisSeriesHoy",
+      "description": "Streams en Latino desde PelisSeriesHoy.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/peliserieshoy.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    }
+  ]
+}
