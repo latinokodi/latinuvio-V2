@@ -4,9 +4,9 @@
   
   # Proveedores Latino para Nuvio
 
-  [![Version](https://img.shields.io/badge/version-0.2.0-blueviolet?style=for-the-badge)](https://github.com/latinokodi/nuvio-providers-latino-v2)
-  [![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)](https://github.com/latinokodi/nuvio-providers-latino-v2)
-  [![Platform](https://img.shields.io/badge/platform-Nuvio-blue?style=for-the-badge)](https://github.com/latinokodi/nuvio-providers-latino-v2)
+  [![Version](https://img.shields.io/badge/version-0.2.0-blueviolet?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
+  [![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
+  [![Platform](https://img.shields.io/badge/platform-Nuvio-blue?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
 
   Un proyecto independiente diseñado para ofrecer una colección optimizada y de alto rendimiento de scrapers en **Español Latino y Castellano** para la aplicación **Nuvio**.
 
@@ -33,7 +33,7 @@ Para agregar este proyecto a tu aplicación Nuvio, sigue estos pasos:
 4. Selecciona la opción para **Importar Manifest / Agregar Repositorio** y pega la siguiente URL:
 
 ```text
-https://raw.githubusercontent.com/latinokodi/nuvio-providers-latino-v2/main/manifest.json
+https://raw.githubusercontent.com/latinokodi/latinuvio-V2/main/manifest.json
 ```
 
 5. Los módulos se activarán automáticamente para realizar la búsqueda de contenido.
