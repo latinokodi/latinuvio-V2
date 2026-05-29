@@ -1,0 +1,26 @@
+# Node.js local files
+node_modules/
+package.json
+package-lock.json
+
+# Svelte / Vite / Tauri local source directories
+src/
+src-tauri/
+index.html
+vite.config.js
+svelte.config.js
+tsconfig.json
+jsconfig.json
+tsconfig.node.json
+
+# Local testing and synchronization scripts
+sync_config.json
+test_providers.cjs
+sync_providers.cjs
+launch_app.bat
+
+# OS-specific files
+.DS_Store
+*.log
+.idea/
+.vscode/
