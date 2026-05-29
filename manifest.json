@@ -432,6 +432,177 @@
       "contentLanguage": [
         "es"
       ]
+    },
+    {
+      "id": "areshd",
+      "name": "AresHD",
+      "description": "Películas y series en Latino y Español desde AresHD.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/areshd.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "seriesflix",
+      "name": "SeriesFlix",
+      "description": "Series en Latino y Español desde SeriesFlixHD.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/seriesflix.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "cinemitas",
+      "name": "Cinemitas",
+      "description": "Películas y series desde Cinemitas. Multi-resolución.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/cinemitas.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "vitaminagg",
+      "name": "VitaminagG",
+      "description": "Películas y series en Latino con bypass de desencriptado.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/vitaminagg.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "tioanime",
+      "name": "TioAnime",
+      "description": "Anime en VOSE desde TioAnime.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/tioanime.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "jkanime",
+      "name": "JKAnime",
+      "description": "Anime en VOSE desde JKAnime.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/jkanime.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "repelishd",
+      "name": "RepelisHD",
+      "description": "Películas y series desde RepelisHD.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/repelishd.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "cine24h",
+      "name": "Cine24h",
+      "description": "Películas y series en Español y Latino.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/cine24h.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "peliculasflix",
+      "name": "PeliculasFlix",
+      "description": "Películas en Latino, Español y VOSE con API GraphQL.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie"
+      ],
+      "filename": "providers/peliculasflix.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "pelisgratishd",
+      "name": "PelisGratisHD",
+      "description": "Películas y series en Latino, Español y VOSE.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelisgratishd.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "veronline",
+      "name": "VerOnline",
+      "description": "Series en Latino, Español y VOSE desde VerOnline.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/veronline.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
     }
   ]
 }
