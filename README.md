@@ -44,3 +44,11 @@ https://raw.githubusercontent.com/latinokodi/latinuvio-V2/main/manifest.json
 
 *   **Compatibilidad CJS**: Todo el código de ejecución se compila utilizando CommonJS (`cjs`) y especificaciones `es2016` para evitar errores de sintaxis asíncrona en plataformas heredadas.
 *   **Validación de Flujos**: Implementa filtros avanzados para depurar enlaces corruptos o no disponibles antes de ser presentados en pantalla.
+
+---
+
+## ⚠️ Descargo de Responsabilidad (Disclaimer)
+
+Este proyecto y sus scrapers son herramientas independientes creadas exclusivamente con fines educativos y de desarrollo.
+- **Alojamiento de contenido**: Este repositorio **no** aloja, almacena, transmite ni distribuye ningún tipo de archivo multimedia, video o audio en sus servidores. Todos los resolvers y enlaces de streaming presentados son proveídos y hospedados por servidores y plataformas de terceros externas a este proyecto.
+- **Responsabilidad de Uso**: Los autores y colaboradores de este software no asumen responsabilidad alguna por el uso final que los usuarios hagan de este material ni por la estabilidad o legitimidad de los enlaces obtenidos de fuentes de terceros. El uso de estos proveedores queda bajo el propio riesgo y criterio del usuario final.
