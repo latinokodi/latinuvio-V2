@@ -48,10 +48,21 @@ function slugify(title) {
  * @param {string} [host] - optional subdomain: vitaminagg.vip (default), anime.vitaminagg.vip, hentai.vitaminagg.vip
  */
 async function getStreams(tmdbId, mediaType, season, episode, title, host) {
-    if (!title) {
+    let targetTitle = title;
+    if (!targetTitle) {
+        try {
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=439c478a771f35c05022f9feabcca01c&language=es-MX`).then(r => r.json());
+            targetTitle = mediaType === "movie" ? tmdbRes.title : tmdbRes.name;
+        } catch (e) {
+            console.error("[VitaminagG] TMDB lookup failed:", e.message);
+        }
+    }
+    
+    if (!targetTitle) {
         console.error("[VitaminagG] Missing title");
         return [];
     }
+    title = targetTitle;
 
     // If host is provided, only try that one. Otherwise try main then anime.
     const hostsToTry = host ? [host] : ["vitaminagg.vip", "anime.vitaminagg.vip"];

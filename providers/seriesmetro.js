@@ -1,6 +1,6 @@
 var w = Object.defineProperty, _ = Object.defineProperties, D = Object.getOwnPropertyDescriptor, N = Object.getOwnPropertyDescriptors, W = Object.getOwnPropertyNames, y = Object.getOwnPropertySymbols;
 var v = Object.prototype.hasOwnProperty, C = Object.prototype.propertyIsEnumerable;
-var L = (o, t, e) => t in o ? w(o, t, { enumerable: true, configurable: true, writable: true, value: e }) : o[t] = e, g = (o, t) => {
+var L = (o, t, e) => t in o ? w(o, t, { enumerable: true, configurable: true, writable: true, value: e }) : o[t] = e, m = (o, t) => {
   for (var e in t || (t = {}))
     v.call(t, e) && L(o, e, t[e]);
   if (y)
@@ -21,18 +21,18 @@ var K = (o) => P(w({}, "__esModule", { value: true }), o);
 var f = (o, t, e) => new Promise((s, r) => {
   var n = (c) => {
     try {
-      i(e.next(c));
-    } catch (l) {
-      r(l);
+      l(e.next(c));
+    } catch (i) {
+      r(i);
     }
   }, a = (c) => {
     try {
-      i(e.throw(c));
-    } catch (l) {
-      r(l);
+      l(e.throw(c));
+    } catch (i) {
+      r(i);
     }
-  }, i = (c) => c.done ? s(c.value) : Promise.resolve(c.value).then(n, a);
-  i((e = e.apply(o, t)).next());
+  }, l = (c) => c.done ? s(c.value) : Promise.resolve(c.value).then(n, a);
+  l((e = e.apply(o, t)).next());
 });
 var V = {};
 q(V, { getStreams: () => J });
@@ -44,17 +44,17 @@ function B(o, t) {
 function R(e) {
   return f(this, arguments, function* (o, t = {}) {
     try {
-      let r = yield (yield fetch(o, { headers: g({ "User-Agent": z }, t), redirect: "follow" })).text();
+      let r = yield (yield fetch(o, { headers: m({ "User-Agent": z }, t), redirect: "follow" })).text();
       if (!r.includes("#EXT-X-STREAM-INF")) {
         let c = o.match(/[_-](\d{3,4})p/);
         return c ? `${c[1]}p` : "1080p";
       }
-      let n = 0, a = 0, i = r.split(`
+      let n = 0, a = 0, l = r.split(`
 `);
-      for (let c of i) {
-        let l = c.match(/RESOLUTION=(\d+)x(\d+)/);
-        if (l) {
-          let u = parseInt(l[1]), p = parseInt(l[2]);
+      for (let c of l) {
+        let i = c.match(/RESOLUTION=(\d+)x(\d+)/);
+        if (i) {
+          let u = parseInt(i[1]), p = parseInt(i[2]);
           p > a && (a = p, n = u);
         }
       }
@@ -105,10 +105,10 @@ function H(o, t) {
     }
     for (let { lang: r, name: n } of e)
       try {
-        let a = `https://api.themoviedb.org/3/${t}/${o}?api_key=${T}&language=${r}`, i = yield fetch(a).then((u) => u.json()), c = t === "movie" ? i.title : i.name, l = t === "movie" ? i.original_title : i.original_name;
+        let a = `https://api.themoviedb.org/3/${t}/${o}?api_key=${T}&language=${r}`, l = yield fetch(a).then((u) => u.json()), c = t === "movie" ? l.title : l.name, i = t === "movie" ? l.original_title : l.original_name;
         if (r === "es-MX" && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(c))
           continue;
-        return console.log(`[SeriesMetro] TMDB (${n}): "${c}"`), { title: c, originalTitle: l, titleEs: s };
+        return console.log(`[SeriesMetro] TMDB (${n}): "${c}"`), { title: c, originalTitle: i, titleEs: s };
       } catch (a) {
         console.log(`[SeriesMetro] Error TMDB ${n}: ${a.message}`);
       }
@@ -119,14 +119,14 @@ function j(o, t) {
   return f(this, null, function* () {
     let { title: e, originalTitle: s, titleEs: r } = o, n = t === "movie" ? "pelicula" : "serie", a = [];
     e && a.push(x(e)), s && s !== e && a.push(x(s)), r && r !== e && a.push(x(r));
-    for (let i of a) {
-      let c = `${b}/${n}/${i}/`;
+    for (let l of a) {
+      let c = `${b}/${n}/${l}/`;
       try {
-        let l = yield fetch(c, { headers: M }).then((u) => u.text());
-        if (l.includes("trembed=") || l.includes("data-post="))
-          return console.log(`[SeriesMetro] \u2713 Encontrado: /${n}/${i}/`), { url: c, html: l };
-      } catch (l) {
-        console.log(`[SeriesMetro] Error fetch ${c}: ${l.message}`);
+        let i = yield fetch(c, { headers: M }).then((u) => u.text());
+        if (i.includes("trembed=") || i.includes("data-post="))
+          return console.log(`[SeriesMetro] \u2713 Encontrado: /${n}/${l}/`), { url: c, html: i };
+      } catch (i) {
+        console.log(`[SeriesMetro] Error fetch ${c}: ${i.message}`);
       }
     }
     return console.log("[SeriesMetro] No encontrado por slug"), null;
@@ -139,9 +139,9 @@ function Q(o, t, e, s) {
     if (!r)
       return console.log("[SeriesMetro] No se encontr\xF3 data-post"), null;
     try {
-      let a = new URLSearchParams({ action: "action_select_season", post: r, season: String(e) }), u = [...(yield (yield fetch(`${b}/wp-admin/admin-ajax.php`, { method: "POST", headers: E(g({}, M), { "Content-Type": "application/x-www-form-urlencoded", Referer: o }), body: a })).text()).matchAll(/href="([^"]+\/capitulo\/[^"]+)"/g)].map((p) => p[1]).find((p) => {
-        let m = p.match(/temporada-(\d+)-capitulo-(\d+)/i);
-        return m && parseInt(m[1]) === e && parseInt(m[2]) === s;
+      let a = new URLSearchParams({ action: "action_select_season", post: r, season: String(e) }), u = [...(yield (yield fetch(`${b}/wp-admin/admin-ajax.php`, { method: "POST", headers: E(m({}, M), { "Content-Type": "application/x-www-form-urlencoded", Referer: o }), body: a.toString() })).text()).matchAll(/href="([^"]+\/capitulo\/[^"]+)"/g)].map((p) => p[1]).find((p) => {
+        let g = p.match(/temporada-(\d+)-capitulo-(\d+)/i);
+        return g && parseInt(g[1]) === e && parseInt(g[2]) === s;
       });
       return u ? (console.log(`[SeriesMetro] \u2713 Episodio S${e}E${s} encontrado: ${u}`), u) : (console.log(`[SeriesMetro] Episodio S${e}E${s} no encontrado`), null);
     } catch (a) {
@@ -151,18 +151,18 @@ function Q(o, t, e, s) {
 }
 function Y(o, t) {
   return f(this, null, function* () {
-    var l;
-    let e = yield fetch(o, { headers: E(g({}, M), { Referer: t }) }).then((u) => u.text()), s = [...e.matchAll(/href="#options-(\d+)"[^>]*>[\s\S]*?<span class="server">([\s\S]*?)<\/span>/g)], r = [...e.matchAll(/\?trembed=(\d+)(?:&#038;|&)trid=(\d+)(?:&#038;|&)trtype=(\d+)/g)];
+    var i;
+    let e = yield fetch(o, { headers: E(m({}, M), { Referer: t }) }).then((u) => u.text()), s = [...e.matchAll(/href="#options-(\d+)"[^>]*>[\s\S]*?<span class="server">([\s\S]*?)<\/span>/g)], r = [...e.matchAll(/\?trembed=(\d+)(?:&#038;|&)trid=(\d+)(?:&#038;|&)trtype=(\d+)/g)];
     if (r.length === 0 || s.length === 0)
       return [];
-    let n = r[0][2], a = r[0][3], i = s.sort(([, , u], [, , p]) => {
-      let m = u.replace(/<[^>]+>/g, "").split("-").pop().trim().toLowerCase(), S = p.replace(/<[^>]+>/g, "").split("-").pop().trim().toLowerCase(), d = k.indexOf(m), h = k.indexOf(S);
+    let n = r[0][2], a = r[0][3], l = s.sort(([, , u], [, , p]) => {
+      let g = u.replace(/<[^>]+>/g, "").split("-").pop().trim().toLowerCase(), S = p.replace(/<[^>]+>/g, "").split("-").pop().trim().toLowerCase(), d = k.indexOf(g), h = k.indexOf(S);
       return (d === -1 ? 99 : d) - (h === -1 ? 99 : h);
     }), c = [];
-    for (let [, u, p] of i) {
+    for (let [, u, p] of l) {
       let S = p.replace(/<[^>]+>/g, "").trim().split("-").pop().trim().toLowerCase(), d = G[S] || S;
       try {
-        let A = (l = (yield fetch(`${b}/?trembed=${u}&trid=${n}&trtype=${a}`, { headers: E(g({}, M), { Referer: o }) }).then((I) => I.text())).match(/<iframe[^>]*src="(https?:\/\/fastream\.to\/[^"]+)"/i)) == null ? void 0 : l[1];
+        let A = (i = (yield fetch(`${b}/?trembed=${u}&trid=${n}&trtype=${a}`, { headers: E(m({}, M), { Referer: o }) }).then((I) => I.text())).match(/<iframe[^>]*src="(https?:\/\/fastream\.to\/[^"]+)"/i)) == null ? void 0 : i[1];
         if (!A)
           continue;
         let $ = yield F(A);
@@ -190,15 +190,15 @@ function J(o, t, e, s) {
       let a = yield j(n, t);
       if (!a)
         return [];
-      let i = a.url;
+      let l = a.url;
       if (t === "tv" && e && s) {
         let u = yield Q(a.url, a.html, e, s);
         if (!u)
           return console.log(`[SeriesMetro] Episodio S${e}E${s} no encontrado`), [];
-        console.log(`[SeriesMetro] Episodio: ${u}`), i = u;
+        console.log(`[SeriesMetro] Episodio: ${u}`), l = u;
       }
-      let c = yield Y(i, i), l = ((Date.now() - r) / 1e3).toFixed(2);
-      return console.log(`[SeriesMetro] \u2713 ${c.length} streams en ${l}s`), c;
+      let c = yield Y(l, l), i = ((Date.now() - r) / 1e3).toFixed(2);
+      return console.log(`[SeriesMetro] \u2713 ${c.length} streams en ${i}s`), c;
     } catch (n) {
       return console.log(`[SeriesMetro] Error: ${n.message}`), [];
     }
