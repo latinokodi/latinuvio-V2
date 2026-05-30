@@ -437,7 +437,7 @@
       "id": "areshd",
       "name": "AresHD",
       "description": "Películas y series en Latino y Español desde AresHD.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
@@ -584,6 +584,134 @@
         "tv"
       ],
       "filename": "providers/veronline.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "detodopeliculas",
+      "name": "Detodopeliculas",
+      "description": "Streams en Latino desde Detodopeliculas.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/detodopeliculas.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "gnula",
+      "name": "Gnula",
+      "description": "Películas, series y anime en Latino/Español desde Gnula.hd.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/gnula.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "seriesgato",
+      "name": "SeriesGato",
+      "description": "Una de las fuentes más actualizadas para series con audio dual (Latino/Inglés) desde Gatonplayseries.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/seriesgato.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "seriespapaya",
+      "name": "SeriesPapaya",
+      "description": "Gran catálogo de series, incluyendo contenido clásico y estrenos desde Magistv24.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/seriespapaya.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "zonaleros",
+      "name": "ZonaLeros",
+      "description": "Películas y series en HD con audio Latino desde Zona-Leros.com.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/zonaleros.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://zona-leros.com/favicon.ico"
+    },
+    {
+      "id": "verpelis",
+      "name": "VerPelis",
+      "description": "Películas y series actuales en español latino e inglés de verpelis.gratis.",
+      "version": "1.0.0",
+      "author": "balandro-ported",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/verpelis.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://verpelis.gratis/favicon.ico"
+    },
+    {
+      "id": "pelispedia",
+      "name": "Pelispedia",
+      "description": "Proveedor de streaming Pelispedia adaptado para Luvio.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelispedia.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "hackstore",
+      "name": "Hackstore",
+      "description": "Proveedor de streaming Hackstore adaptado para Luvio.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/hackstore.js",
       "enabled": true,
       "contentLanguage": [
         "es"
