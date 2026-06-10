@@ -1,370 +1,395 @@
-var K = Object.create;
-var S = Object.defineProperty, F = Object.defineProperties, J = Object.getOwnPropertyDescriptor, G = Object.getOwnPropertyDescriptors, X = Object.getOwnPropertyNames, T = Object.getOwnPropertySymbols, Y = Object.getPrototypeOf, O = Object.prototype.hasOwnProperty, Q = Object.prototype.propertyIsEnumerable;
-var U = (e, o, t) => o in e ? S(e, o, { enumerable: true, configurable: true, writable: true, value: t }) : e[o] = t, v = (e, o) => {
-  for (var t in o || (o = {}))
-    O.call(o, t) && U(e, t, o[t]);
-  if (T)
-    for (var t of T(o))
-      Q.call(o, t) && U(e, t, o[t]);
+var J = Object.create;
+var A = Object.defineProperty, Q = Object.defineProperties, G = Object.getOwnPropertyDescriptor, Y = Object.getOwnPropertyDescriptors, X = Object.getOwnPropertyNames, _ = Object.getOwnPropertySymbols, Z = Object.getPrototypeOf, N = Object.prototype.hasOwnProperty, ee = Object.prototype.propertyIsEnumerable;
+var O = (e, t, n) => t in e ? A(e, t, { enumerable: true, configurable: true, writable: true, value: n }) : e[t] = n, E = (e, t) => {
+  for (var n in t || (t = {}))
+    N.call(t, n) && O(e, n, t[n]);
+  if (_)
+    for (var n of _(t))
+      ee.call(t, n) && O(e, n, t[n]);
   return e;
-}, N = (e, o) => F(e, G(o));
-var Z = (e, o) => {
-  for (var t in o)
-    S(e, t, { get: o[t], enumerable: true });
-}, _ = (e, o, t, l) => {
-  if (o && typeof o == "object" || typeof o == "function")
-    for (let s of X(o))
-      !O.call(e, s) && s !== t && S(e, s, { get: () => o[s], enumerable: !(l = J(o, s)) || l.enumerable });
+}, I = (e, t) => Q(e, Y(t));
+var te = (e, t) => {
+  for (var n in t)
+    A(e, n, { get: t[n], enumerable: true });
+}, P = (e, t, n, c) => {
+  if (t && typeof t == "object" || typeof t == "function")
+    for (let s of X(t))
+      !N.call(e, s) && s !== n && A(e, s, { get: () => t[s], enumerable: !(c = G(t, s)) || c.enumerable });
   return e;
 };
-var ee = (e, o, t) => (t = e != null ? K(Y(e)) : {}, _(o || !e || !e.__esModule ? S(t, "default", { value: e, enumerable: true }) : t, e)), te = (e) => _(S({}, "__esModule", { value: true }), e);
-var g = (e, o, t) => new Promise((l, s) => {
-  var c = (r) => {
+var ne = (e, t, n) => (n = e != null ? J(Z(e)) : {}, P(t || !e || !e.__esModule ? A(n, "default", { value: e, enumerable: true }) : n, e)), oe = (e) => P(A({}, "__esModule", { value: true }), e);
+var m = (e, t, n) => new Promise((c, s) => {
+  var r = (i) => {
     try {
-      u(t.next(r));
-    } catch (n) {
-      s(n);
+      l(n.next(i));
+    } catch (o) {
+      s(o);
     }
-  }, i = (r) => {
+  }, a = (i) => {
     try {
-      u(t.throw(r));
-    } catch (n) {
-      s(n);
+      l(n.throw(i));
+    } catch (o) {
+      s(o);
     }
-  }, u = (r) => r.done ? l(r.value) : Promise.resolve(r.value).then(c, i);
-  u((t = t.apply(e, o)).next());
+  }, l = (i) => i.done ? c(i.value) : Promise.resolve(i.value).then(r, a);
+  l((n = n.apply(e, t)).next());
 });
-var $e = {};
-Z($e, { getStreams: () => we });
-module.exports = te($e);
-var oe = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-function ne(e, o) {
-  return e >= 3840 || o >= 2160 ? "4K" : e >= 1920 || o >= 1080 ? "1080p" : e >= 1280 || o >= 720 ? "720p" : e >= 854 || o >= 480 ? "480p" : "360p";
+var Re = {};
+te(Re, { getStreams: () => ye });
+module.exports = oe(Re);
+var re = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", L = { vimeos: { h: "720p", n: "480p" }, goodstream: { x: "1080p", h: "720p", n: "480p", l: "360p" }, vidhide: { n: "720p", l: "480p" }, streamwish: { x: "1080p", h: "1080p", n: "720p", l: "480p" }, voe: { n: "720p", l: "360p" } }, se = ["x", "o", "h", "n", "l"];
+function ie(e) {
+  return e.includes("vimeos") ? L.vimeos : e.includes("goodstream") ? L.goodstream : e.includes("cloudwindow-route") ? L.voe : e.includes("minochinos") || e.includes("vidhide") || e.includes("dintezuvio") || e.includes("dramiyos") ? L.vidhide : e.includes("premilkyway") || e.includes("hlswish") || e.includes("vibuxer") || e.includes("streamwish") ? L.streamwish : null;
 }
-function H(t) {
-  return g(this, arguments, function* (e, o = {}) {
+function x(n) {
+  return m(this, arguments, function* (e, t = {}) {
+    let c = U(e);
+    return c !== "Unknown" ? c : yield ae(e, t);
+  });
+}
+function U(e) {
+  if (!e)
+    return "Unknown";
+  let t = ie(e);
+  if (t) {
+    let c = e.match(/_,([a-z,]+),\.urlset/);
+    if (c) {
+      let s = c[1].split(",").filter(Boolean);
+      for (let r of se)
+        if (s.includes(r) && t[r])
+          return t[r];
+    }
+  }
+  let n = e.match(/[_\-\/](\d{3,4})p/);
+  return n ? n[1] + "p" : "Unknown";
+}
+function ce(e, t) {
+  return e >= 3840 || t >= 2160 ? "4K" : e >= 1920 || t >= 1080 ? "1080p" : e >= 1280 || t >= 720 ? "720p" : e >= 854 || t >= 480 ? "480p" : "360p";
+}
+function ae(n) {
+  return m(this, arguments, function* (e, t = {}) {
     try {
-      let s = yield (yield fetch(e, { headers: v({ "User-Agent": oe }, o), redirect: "follow" })).text();
+      let s = yield (yield fetch(e, { headers: E({ "User-Agent": re }, t), redirect: "follow" })).text();
       if (!s.includes("#EXT-X-STREAM-INF")) {
-        let r = e.match(/[_-](\d{3,4})p/);
-        return r ? `${r[1]}p` : "1080p";
+        let l = e.match(/[_-](\d{3,4})p/);
+        return l ? `${l[1]}p` : "Unknown";
       }
-      let c = 0, i = 0, u = s.split(`
-`);
-      for (let r of u) {
-        let n = r.match(/RESOLUTION=(\d+)x(\d+)/);
-        if (n) {
-          let a = parseInt(n[1]), m = parseInt(n[2]);
-          m > i && (i = m, c = a);
+      let r = 0, a = 0;
+      for (let l of s.split(`
+`)) {
+        let i = l.match(/RESOLUTION=(\d+)x(\d+)/);
+        if (i) {
+          let o = parseInt(i[2]);
+          o > a && (a = o, r = parseInt(i[1]));
         }
       }
-      return i > 0 ? ne(c, i) : "1080p";
-    } catch (l) {
-      return "1080p";
+      return a > 0 ? ce(r, a) : "Unknown";
+    } catch (c) {
+      return "Unknown";
     }
   });
 }
-var re = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-function P(e) {
+var le = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+function V(e) {
   try {
     return typeof atob != "undefined" ? atob(e) : Buffer.from(e, "base64").toString("utf8");
-  } catch (o) {
+  } catch (t) {
     return null;
   }
 }
-function se(e, o) {
+function ue(e, t) {
   try {
-    let l = o.replace(/^\[|\]$/g, "").split("','").map((n) => n.replace(/^'+|'+$/g, "")).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), s = "";
-    for (let n of e) {
-      let a = n.charCodeAt(0);
-      a > 64 && a < 91 ? a = (a - 52) % 26 + 65 : a > 96 && a < 123 && (a = (a - 84) % 26 + 97), s += String.fromCharCode(a);
+    let c = t.replace(/^\[|\]$/g, "").split("','").map((o) => o.replace(/^'+|'+$/g, "")).map((o) => o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), s = "";
+    for (let o of e) {
+      let u = o.charCodeAt(0);
+      u > 64 && u < 91 ? u = (u - 52) % 26 + 65 : u > 96 && u < 123 && (u = (u - 84) % 26 + 97), s += String.fromCharCode(u);
     }
-    for (let n of l)
-      s = s.replace(new RegExp(n, "g"), "_");
+    for (let o of c)
+      s = s.replace(new RegExp(o, "g"), "_");
     s = s.split("_").join("");
-    let c = P(s);
-    if (!c)
+    let r = V(s);
+    if (!r)
       return null;
-    let i = "";
-    for (let n = 0; n < c.length; n++)
-      i += String.fromCharCode((c.charCodeAt(n) - 3 + 256) % 256);
-    let u = i.split("").reverse().join(""), r = P(u);
-    return r ? JSON.parse(r) : null;
-  } catch (t) {
-    return console.log("[VOE] voeDecode error:", t.message), null;
+    let a = "";
+    for (let o = 0; o < r.length; o++)
+      a += String.fromCharCode((r.charCodeAt(o) - 3 + 256) % 256);
+    let l = a.split("").reverse().join(""), i = V(l);
+    return i ? JSON.parse(i) : null;
+  } catch (n) {
+    return console.log("[VOE] voeDecode error:", n.message), null;
   }
 }
-function M(t) {
-  return g(this, arguments, function* (e, o = {}) {
-    return yield fetch(e, { method: "GET", headers: v({ "User-Agent": re, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" }, o), redirect: "follow" });
+function H(n) {
+  return m(this, arguments, function* (e, t = {}) {
+    return yield fetch(e, { method: "GET", headers: E({ "User-Agent": le, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" }, t), redirect: "follow" });
   });
 }
-function V(e) {
-  return g(this, null, function* () {
+function q(e) {
+  return m(this, null, function* () {
     try {
       console.log(`[VOE] Resolviendo: ${e}`);
-      let o = yield M(e, { Referer: e });
-      if (!o.ok)
-        throw new Error(`HTTP ${o.status}`);
-      let t = yield o.text();
-      if (/permanentToken/i.test(t)) {
-        let r = t.match(/window\.location\.href\s*=\s*'([^']+)'/i);
-        if (r) {
-          console.log(`[VOE] Permanent token redirect -> ${r[1]}`);
-          let n = yield M(r[1], { Referer: e });
-          n.ok && (t = yield n.text());
-        }
-      }
-      let l = t.match(/json">\s*\[\s*['"]([^'"]+)['"]\s*\]\s*<\/script>\s*<script[^>]*src=['"]([^'"]+)['"]/i);
-      if (l) {
-        let r = l[1], n = l[2].startsWith("http") ? l[2] : new URL(l[2], e).href;
-        console.log(`[VOE] Found encoded array + loader: ${n}`);
-        let a = yield M(n, { Referer: e }), m = a.ok ? yield a.text() : "", L = m.match(/(\[(?:'[^']{1,10}'[\s,]*){4,12}\])/i) || m.match(/(\[(?:"[^"]{1,10}"[,\s]*){4,12}\])/i);
-        if (L) {
-          let w = se(r, L[1]);
-          if (w && (w.source || w.direct_access_url)) {
-            let y = w.source || w.direct_access_url, d = yield H(y, { Referer: e });
-            return console.log(`[VOE] URL encontrada: ${y.substring(0, 80)}...`), { url: y, quality: d, headers: { Referer: e } };
-          }
-        }
-      }
-      let s = /(?:mp4|hls)'\s*:\s*'([^']+)'/gi, c = /(?:mp4|hls)"\s*:\s*"([^"]+)"/gi, i = [], u;
-      for (; (u = s.exec(t)) !== null; )
-        i.push(u);
-      for (; (u = c.exec(t)) !== null; )
-        i.push(u);
-      for (let r of i) {
-        let n = r[1];
-        if (!n)
-          continue;
-        let a = n;
-        if (a.startsWith("aHR0"))
-          try {
-            a = atob(a);
-          } catch (m) {
-          }
-        return console.log(`[VOE] URL encontrada (fallback): ${a.substring(0, 80)}...`), { url: a, quality: yield H(a, { Referer: e }), headers: { Referer: e } };
-      }
-      return console.log("[VOE] No se encontr\xF3 URL"), null;
-    } catch (o) {
-      return console.log(`[VOE] Error: ${o.message}`), null;
-    }
-  });
-}
-var A = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-function ce(e, o, t) {
-  let l = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", s = (c) => {
-    let i = 0;
-    for (let u = 0; u < c.length; u++) {
-      let r = l.indexOf(c[u]);
-      if (r === -1)
-        return NaN;
-      i = i * o + r;
-    }
-    return i;
-  };
-  return e.replace(/\b([0-9a-zA-Z]+)\b/g, (c) => {
-    let i = s(c);
-    return isNaN(i) || i >= t.length ? c : t[i] && t[i] !== "" ? t[i] : c;
-  });
-}
-function ie(e, o) {
-  let t = e.match(/\{[^{}]*"hls[234]"\s*:\s*"([^"]+)"[^{}]*\}/);
-  if (t)
-    try {
-      let s = t[0].replace(/(\w+)\s*:/g, '"$1":'), c = JSON.parse(s), i = c.hls4 || c.hls3 || c.hls2;
-      if (i)
-        return i.startsWith("/") ? o + i : i;
-    } catch (s) {
-      let c = t[0].match(/"hls[234]"\s*:\s*"([^"]+\.m3u8[^"]*)"/);
-      if (c) {
-        let i = c[1];
-        return i.startsWith("/") ? o + i : i;
-      }
-    }
-  let l = e.match(/["']([^"']{30,}\.m3u8[^"']*)['"]/i);
-  if (l) {
-    let s = l[1];
-    return s.startsWith("/") ? o + s : s;
-  }
-  return null;
-}
-var le = { "hglink.to": "vibuxer.com" };
-function x(e) {
-  return g(this, null, function* () {
-    var o;
-    try {
-      let t = e;
-      for (let [n, a] of Object.entries(le))
-        if (t.includes(n)) {
-          t = t.replace(n, a);
-          break;
-        }
-      let l = ((o = t.match(/^(https?:\/\/[^/]+)/)) == null ? void 0 : o[1]) || "https://hlswish.com";
-      console.log(`[HLSWish] Resolviendo: ${e}`), t !== e && console.log(`[HLSWish] \u2192 Mapped to: ${t}`);
-      let s = yield fetch(t, { headers: { "User-Agent": A, Referer: "https://embed69.org/", Origin: "https://embed69.org", Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "es-MX,es;q=0.9" }, redirect: "follow" });
-      if (!s.ok)
-        throw new Error(`HTTP ${s.status}`);
-      let c = yield s.text(), i = c.match(/file\s*:\s*["']([^"']+)["']/i);
-      if (i) {
-        let n = i[1];
-        if (n.startsWith("/") && (n = l + n), n.includes("vibuxer.com/stream/")) {
-          console.log(`[HLSWish] Siguiendo redirect: ${n.substring(0, 80)}...`);
-          try {
-            let m = (yield fetch(n, { headers: { "User-Agent": A, Referer: l + "/" }, redirect: "follow" })).url;
-            m && m.includes(".m3u8") && (n = m);
-          } catch (a) {
-          }
-        }
-        return console.log(`[HLSWish] URL encontrada: ${n.substring(0, 80)}...`), { url: n, quality: "1080p", headers: { "User-Agent": A, Referer: l + "/" } };
-      }
-      let u = c.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[^}]+\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
-      if (u) {
-        let n = ce(u[1], parseInt(u[2]), u[4].split("|")), a = ie(n, l);
-        if (a)
-          return console.log(`[HLSWish] URL encontrada: ${a.substring(0, 80)}...`), { url: a, quality: "1080p", headers: { "User-Agent": A, Referer: l + "/" } };
-      }
-      let r = c.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
-      return r ? (console.log(`[HLSWish] URL encontrada: ${r[0].substring(0, 80)}...`), { url: r[0], quality: "1080p", headers: { "User-Agent": A, Referer: l + "/" } }) : (console.log("[HLSWish] No se encontr\xF3 URL"), null);
-    } catch (t) {
-      return console.log(`[HLSWish] Error: ${t.message}`), null;
-    }
-  });
-}
-var I = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-function ae(e) {
-  try {
-    let o = e.match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
-    if (!o)
-      return null;
-    let [, t, l, s, c] = o;
-    l = parseInt(l), s = parseInt(s), c = c.split("|");
-    let i = (u, r) => {
-      let n = "0123456789abcdefghijklmnopqrstuvwxyz", a = "";
-      for (; u > 0; )
-        a = n[u % r] + a, u = Math.floor(u / r);
-      return a || "0";
-    };
-    return t = t.replace(/\b\w+\b/g, (u) => {
-      let r = parseInt(u, 36);
-      return r < c.length && c[r] ? c[r] : i(r, l);
-    }), t;
-  } catch (o) {
-    return null;
-  }
-}
-function W(e) {
-  return g(this, null, function* () {
-    var o;
-    try {
-      console.log(`[VidHide] Resolviendo: ${e}`);
-      let t = yield fetch(e, { method: "GET", headers: { "User-Agent": I, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", Referer: "https://embed69.org/" }, redirect: "follow" });
+      let t = yield H(e, { Referer: e });
       if (!t.ok)
         throw new Error(`HTTP ${t.status}`);
-      let s = (yield t.text()).match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
-      if (!s)
-        return console.log("[VidHide] No se encontr\xF3 bloque eval"), null;
-      let c = ae(s[0]);
-      if (!c)
-        return console.log("[VidHide] No se pudo desempacar"), null;
-      let i = c.match(/"hls4"\s*:\s*"([^"]+)"/), u = c.match(/"hls2"\s*:\s*"([^"]+)"/), r = (o = i || u) == null ? void 0 : o[1];
-      if (!r)
-        return console.log("[VidHide] No se encontr\xF3 hls4/hls2"), null;
-      let n = r;
-      r.startsWith("http") || (n = `${new URL(e).origin}${r}`), console.log(`[VidHide] URL encontrada: ${n.substring(0, 80)}...`);
-      let a = new URL(e).origin;
-      return { url: n, headers: { "User-Agent": I, Referer: `${a}/`, Origin: a } };
+      let n = yield t.text();
+      if (/permanentToken/i.test(n)) {
+        let i = n.match(/window\.location\.href\s*=\s*'([^']+)'/i);
+        if (i) {
+          console.log(`[VOE] Permanent token redirect -> ${i[1]}`);
+          let o = yield H(i[1], { Referer: e });
+          o.ok && (n = yield o.text());
+        }
+      }
+      let c = n.match(/json">\s*\[\s*['"]([^'"]+)['"]\s*\]\s*<\/script>\s*<script[^>]*src=['"]([^'"]+)['"]/i);
+      if (c) {
+        let i = c[1], o = c[2].startsWith("http") ? c[2] : new URL(c[2], e).href;
+        console.log(`[VOE] Found encoded array + loader: ${o}`);
+        let u = yield H(o, { Referer: e }), w = u.ok ? yield u.text() : "", W = w.match(/(\[(?:'[^']{1,10}'[\s,]*){4,12}\])/i) || w.match(/(\[(?:"[^"]{1,10}"[,\s]*){4,12}\])/i);
+        if (W) {
+          let b = ue(i, W[1]);
+          if (b && (b.source || b.direct_access_url)) {
+            let R = b.source || b.direct_access_url, d = U(R);
+            return console.log(`[VOE] URL encontrada: ${R.substring(0, 80)}...`), { url: R, quality: d, headers: { Referer: e } };
+          }
+        }
+      }
+      let s = /(?:mp4|hls)'\s*:\s*'([^']+)'/gi, r = /(?:mp4|hls)"\s*:\s*"([^"]+)"/gi, a = [], l;
+      for (; (l = s.exec(n)) !== null; )
+        a.push(l);
+      for (; (l = r.exec(n)) !== null; )
+        a.push(l);
+      for (let i of a) {
+        let o = i[1];
+        if (!o)
+          continue;
+        let u = o;
+        if (u.startsWith("aHR0"))
+          try {
+            u = atob(u);
+          } catch (w) {
+          }
+        return console.log(`[VOE] URL encontrada (fallback): ${u.substring(0, 80)}...`), { url: u, quality: U(u), headers: { Referer: e } };
+      }
+      return console.log("[VOE] No se encontr\xF3 URL"), null;
     } catch (t) {
-      return console.log(`[VidHide] Error: ${t.message}`), null;
+      return console.log(`[VOE] Error: ${t.message}`), null;
     }
   });
 }
-var b = ee(require("crypto-js"));
-var q = "439c478a771f35c05022f9feabcca01c", D = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", C = "https://embed69.org", ue = { "voe.sx": V, "hglink.to": x, "streamwish.com": x, "streamwish.to": x, "wishembed.online": x, "filelions.com": x, "dintezuvio.com": W, "vidhide.com": W, "minochinos.com": W }, de = { voe: "VOE", streamwish: "StreamWish", filemoon: "Filemoon", vidhide: "VidHide" }, he = ["LAT", "ESP", "SUB"];
-function fe(e, o) {
-  try {
-    let t = b.default.enc.Base64.parse(e), l = b.default.lib.WordArray.create(t.words.slice(0, 4), 16), s = b.default.lib.WordArray.create(t.words.slice(4), t.sigBytes - 16), c = b.default.lib.CipherParams.create({ ciphertext: s });
-    return b.default.AES.decrypt(c, o, { iv: l, mode: b.default.mode.CBC, padding: b.default.pad.Pkcs7 }).toString(b.default.enc.Utf8) || null;
-  } catch (t) {
-    return console.log(`[Embed69] Error desencriptando con CryptoJS: ${t.message}`), null;
-  }
-}
-function pe(e) {
-  try {
-    let o = e.match(/let\s+dataLink\s*=\s*(\[.+\]);/);
-    return o ? JSON.parse(o[1]) : null;
-  } catch (o) {
-    return null;
-  }
-}
-function me(e) {
-  if (!e)
-    return null;
-  for (let [o, t] of Object.entries(ue))
-    if (e.includes(o))
-      return t;
-  return null;
-}
-function ge(e, o) {
-  return g(this, null, function* () {
-    let t = o === "movie" ? `https://api.themoviedb.org/3/movie/${e}/external_ids?api_key=${q}` : `https://api.themoviedb.org/3/tv/${e}/external_ids?api_key=${q}`;
-    return (yield fetch(t, { headers: { "User-Agent": D } }).then((s) => s.json())).imdb_id || null;
+var k = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+function de(e, t, n) {
+  let c = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", s = (r) => {
+    let a = 0;
+    for (let l = 0; l < r.length; l++) {
+      let i = c.indexOf(r[l]);
+      if (i === -1)
+        return NaN;
+      a = a * t + i;
+    }
+    return a;
+  };
+  return e.replace(/\b([0-9a-zA-Z]+)\b/g, (r) => {
+    let a = s(r);
+    return isNaN(a) || a >= n.length ? r : n[a] && n[a] !== "" ? n[a] : r;
   });
 }
-function be(e, o, t, l) {
-  if (o === "movie")
-    return `${C}/f/${e}`;
-  let s = String(l).padStart(2, "0");
-  return `${C}/f/${e}-${parseInt(t)}x${s}`;
+function he(e, t) {
+  let n = e.match(/\{[^{}]*"hls[234]"\s*:\s*"([^"]+)"[^{}]*\}/);
+  if (n)
+    try {
+      let s = n[0].replace(/(\w+)\s*:/g, '"$1":'), r = JSON.parse(s), a = r.hls4 || r.hls3 || r.hls2;
+      if (a)
+        return a.startsWith("/") ? t + a : a;
+    } catch (s) {
+      let r = n[0].match(/"hls[234]"\s*:\s*"([^"]+\.m3u8[^"]*)"/);
+      if (r) {
+        let a = r[1];
+        return a.startsWith("/") ? t + a : a;
+      }
+    }
+  let c = e.match(/["']([^"']{30,}\.m3u8[^"']*)['"]/i);
+  if (c) {
+    let s = c[1];
+    return s.startsWith("/") ? t + s : s;
+  }
+  return null;
 }
-function we(e, o, t, l) {
-  return g(this, null, function* () {
-    if (!e || !o)
+var fe = { "hglink.to": "vibuxer.com" };
+function y(e) {
+  return m(this, null, function* () {
+    var t;
+    try {
+      let n = e;
+      for (let [o, u] of Object.entries(fe))
+        if (n.includes(o)) {
+          n = n.replace(o, u);
+          break;
+        }
+      let c = ((t = n.match(/^(https?:\/\/[^/]+)/)) == null ? void 0 : t[1]) || "https://hlswish.com";
+      console.log(`[HLSWish] Resolviendo: ${e}`), n !== e && console.log(`[HLSWish] \u2192 Mapped to: ${n}`);
+      let s = yield fetch(n, { headers: { "User-Agent": k, Referer: "https://embed69.org/", Origin: "https://embed69.org", Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "es-MX,es;q=0.9" }, redirect: "follow" });
+      if (!s.ok)
+        throw new Error(`HTTP ${s.status}`);
+      let r = yield s.text(), a = r.match(/file\s*:\s*["']([^"']+)["']/i);
+      if (a) {
+        let o = a[1];
+        if (o.startsWith("/") && (o = c + o), o.includes("vibuxer.com/stream/")) {
+          console.log(`[HLSWish] Siguiendo redirect: ${o.substring(0, 80)}...`);
+          try {
+            let w = (yield fetch(o, { headers: { "User-Agent": k, Referer: c + "/" }, redirect: "follow" })).url;
+            w && w.includes(".m3u8") && (o = w);
+          } catch (u) {
+          }
+        }
+        return console.log(`[HLSWish] URL encontrada: ${o.substring(0, 80)}...`), { url: o, quality: x(o), headers: { "User-Agent": k, Referer: c + "/" } };
+      }
+      let l = r.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[^}]+\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+      if (l) {
+        let o = de(l[1], parseInt(l[2]), l[4].split("|")), u = he(o, c);
+        if (u)
+          return console.log(`[HLSWish] URL encontrada: ${u.substring(0, 80)}...`), { url: u, quality: x(u), headers: { "User-Agent": k, Referer: c + "/" } };
+      }
+      let i = r.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+      return i ? (console.log(`[HLSWish] URL encontrada: ${i[0].substring(0, 80)}...`), { url: i[0], quality: x(i[0]), headers: { "User-Agent": k, Referer: c + "/" } }) : (console.log("[HLSWish] No se encontr\xF3 URL"), null);
+    } catch (n) {
+      return console.log(`[HLSWish] Error: ${n.message}`), null;
+    }
+  });
+}
+var C = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+function pe(e) {
+  try {
+    let t = e.match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
+    if (!t)
+      return null;
+    let [, n, c, s, r] = t;
+    c = parseInt(c), s = parseInt(s), r = r.split("|");
+    let a = (l, i) => {
+      let o = "0123456789abcdefghijklmnopqrstuvwxyz", u = "";
+      for (; l > 0; )
+        u = o[l % i] + u, l = Math.floor(l / i);
+      return u || "0";
+    };
+    return n = n.replace(/\b\w+\b/g, (l) => {
+      let i = parseInt(l, 36);
+      return i < r.length && r[i] ? r[i] : a(i, c);
+    }), n;
+  } catch (t) {
+    return null;
+  }
+}
+function M(e) {
+  return m(this, null, function* () {
+    var t;
+    try {
+      console.log(`[VidHide] Resolviendo: ${e}`);
+      let n = yield fetch(e, { method: "GET", headers: { "User-Agent": C, Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", Referer: "https://embed69.org/" }, redirect: "follow" });
+      if (!n.ok)
+        throw new Error(`HTTP ${n.status}`);
+      let s = (yield n.text()).match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+      if (!s)
+        return console.log("[VidHide] No se encontr\xF3 bloque eval"), null;
+      let r = pe(s[0]);
+      if (!r)
+        return console.log("[VidHide] No se pudo desempacar"), null;
+      let a = r.match(/"hls4"\s*:\s*"([^"]+)"/), l = r.match(/"hls2"\s*:\s*"([^"]+)"/), i = (t = a || l) == null ? void 0 : t[1];
+      if (!i)
+        return console.log("[VidHide] No se encontr\xF3 hls4/hls2"), null;
+      let o = i;
+      i.startsWith("http") || (o = `${new URL(e).origin}${i}`), console.log(`[VidHide] URL encontrada: ${o.substring(0, 80)}...`);
+      let u = new URL(e).origin;
+      return { url: o, quality: yield x(o, { Referer: `${u}/` }), headers: { "User-Agent": C, Referer: `${u}/`, Origin: u } };
+    } catch (n) {
+      return console.log(`[VidHide] Error: ${n.message}`), null;
+    }
+  });
+}
+var g = ne(require("crypto-js"));
+var D = "439c478a771f35c05022f9feabcca01c", z = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", B = "https://embed69.org", me = { "voe.sx": q, "hglink.to": y, "streamwish.com": y, "streamwish.to": y, "wishembed.online": y, "filelions.com": y, "dintezuvio.com": M, "vidhide.com": M, "minochinos.com": M }, ge = { voe: "VOE", streamwish: "StreamWish", filemoon: "Filemoon", vidhide: "VidHide" }, we = ["LAT", "ESP", "SUB"];
+function be(e, t) {
+  try {
+    let n = g.default.enc.Base64.parse(e), c = g.default.lib.WordArray.create(n.words.slice(0, 4), 16), s = g.default.lib.WordArray.create(n.words.slice(4), n.sigBytes - 16), r = g.default.lib.CipherParams.create({ ciphertext: s });
+    return g.default.AES.decrypt(r, t, { iv: c, mode: g.default.mode.CBC, padding: g.default.pad.Pkcs7 }).toString(g.default.enc.Utf8) || null;
+  } catch (n) {
+    return console.log(`[Embed69] Error desencriptando con CryptoJS: ${n.message}`), null;
+  }
+}
+function ve(e) {
+  try {
+    let t = e.match(/let\s+dataLink\s*=\s*(\[.+\]);/);
+    return t ? JSON.parse(t[1]) : null;
+  } catch (t) {
+    return null;
+  }
+}
+function $e(e) {
+  if (!e)
+    return null;
+  for (let [t, n] of Object.entries(me))
+    if (e.includes(t))
+      return n;
+  return null;
+}
+function Ee(e, t) {
+  return m(this, null, function* () {
+    let n = t === "movie" ? `https://api.themoviedb.org/3/movie/${e}/external_ids?api_key=${D}` : `https://api.themoviedb.org/3/tv/${e}/external_ids?api_key=${D}`;
+    return (yield fetch(n, { headers: { "User-Agent": z } }).then((s) => s.json())).imdb_id || null;
+  });
+}
+function xe(e, t, n, c) {
+  if (t === "movie")
+    return `${B}/f/${e}`;
+  let s = String(c).padStart(2, "0");
+  return `${B}/f/${e}-${parseInt(n)}x${s}`;
+}
+function ye(e, t, n, c) {
+  return m(this, null, function* () {
+    if (!e || !t)
       return [];
     let s = Date.now();
-    console.log(`[Embed69] Buscando: TMDB ${e} (${o})${t ? ` S${t}E${l}` : ""}`);
+    console.log(`[Embed69] Buscando: TMDB ${e} (${t})${n ? ` S${n}E${c}` : ""}`);
     try {
-      let L2 = function(d) {
-        return g(this, null, function* () {
-          return (yield Promise.allSettled(d.map(({ url: f, resolver: p, lang: h, servername: $ }) => Promise.race([p(f).then((R) => R ? N(v({}, R), { lang: h, servername: $ }) : null)])))).filter((f) => {
+      let W2 = function(d) {
+        return m(this, null, function* () {
+          return (yield Promise.allSettled(d.map(({ url: f, resolver: p, lang: h, servername: v }) => p(f).then((S) => S ? I(E({}, S), { lang: h, servername: v }) : null)))).filter((f) => {
             var p;
             return f.status === "fulfilled" && ((p = f.value) == null ? void 0 : p.url);
           }).map((f) => f.value);
         });
       };
-      var L = L2;
-      let m = function(d) {
-        let E = d.video_language || "LAT", f = [];
+      var W = W2;
+      let w = function(d) {
+        let $ = d.video_language || "LAT", f = [];
         for (let p of d.sortedEmbeds || []) {
           if (p.servername === "download")
             continue;
-          let h = fe(p.link, n);
+          let h = be(p.link, o);
           if (!h)
             continue;
-          let $ = me(h);
-          if (!$) {
+          let v = $e(h);
+          if (!v) {
             console.log(`[Embed69] Sin resolver para ${p.servername}: ${h.substring(0, 60)}`);
             continue;
           }
-          f.push({ url: h, resolver: $, lang: E, servername: p.servername });
+          f.push({ url: h, resolver: v, lang: $, servername: p.servername });
         }
         return f;
-      }, c = yield ge(e, o);
-      if (!c)
+      }, r = yield Ee(e, t);
+      if (!r)
         return console.log("[Embed69] No se encontr\xF3 IMDB ID"), [];
-      console.log(`[Embed69] IMDB ID: ${c}`);
-      let i = be(c, o, t, l);
-      console.log(`[Embed69] Fetching: ${i}`);
-      let u = yield fetch(i, { headers: { "User-Agent": D, Referer: "https://sololatino.net/", Accept: "text/html,application/xhtml+xml" } }).then((d) => d.text()), r = pe(u);
-      if (!r || r.length === 0)
+      console.log(`[Embed69] IMDB ID: ${r}`);
+      let a = xe(r, t, n, c);
+      console.log(`[Embed69] Fetching: ${a}`);
+      let l = yield fetch(a, { headers: { "User-Agent": z, Referer: "https://sololatino.net/", Accept: "text/html,application/xhtml+xml" } }).then((d) => d.text()), i = ve(l);
+      if (!i || i.length === 0)
         return console.log("[Embed69] No se encontr\xF3 dataLink en el HTML"), [];
-      console.log(`[Embed69] ${r.length} idiomas disponibles: ${r.map((d) => d.video_language).join(", ")}`);
-      let n;
+      console.log(`[Embed69] ${i.length} idiomas disponibles: ${i.map((d) => d.video_language).join(", ")}`);
+      let o;
       try {
-        let d = u.match(/POW_CHALLENGE = '([^']+)'/)[1], E = parseInt(u.match(/POW_DIFFICULTY = (\d+)/)[1]), f = u.match(/POW_SALT = '([^']+)'/)[1], p = "0".repeat(E), h = 0;
-        for (console.log(`[Embed69] Resolviendo PoW con CryptoJS (Dificultad: ${E})...`); ; ) {
-          if (b.default.SHA256(d + h).toString(b.default.enc.Hex).startsWith(p)) {
-            n = b.default.SHA256(d + h + f), console.log(`[Embed69] PoW Resuelto. Nonce: ${h}`);
+        let d = l.match(/POW_CHALLENGE = '([^']+)'/)[1], $ = parseInt(l.match(/POW_DIFFICULTY = (\d+)/)[1]), f = l.match(/POW_SALT = '([^']+)'/)[1], p = "0".repeat($), h = 0;
+        for (console.log(`[Embed69] Resolviendo PoW con CryptoJS (Dificultad: ${$})...`); ; ) {
+          if (g.default.SHA256(d + h).toString(g.default.enc.Hex).startsWith(p)) {
+            o = g.default.SHA256(d + h + f), console.log(`[Embed69] PoW Resuelto. Nonce: ${h}`);
             break;
           }
           h++;
@@ -372,33 +397,33 @@ function we(e, o, t, l) {
       } catch (d) {
         return console.log(`[Embed69] Error al resolver el PoW: ${d.message}`), [];
       }
-      let a = {};
-      for (let d of r)
-        a[d.video_language] = d;
-      let w = [];
-      for (let d of he) {
-        let E = a[d];
-        if (!E)
+      let u = {};
+      for (let d of i)
+        u[d.video_language] = d;
+      let b = [];
+      for (let d of we) {
+        let $ = u[d];
+        if (!$)
           continue;
-        let f = m(E);
+        let f = w($);
         if (f.length === 0)
           continue;
         console.log(`[Embed69] Resolviendo ${f.length} embeds (${d})...`);
-        let p = yield L2(f);
+        let p = yield W2(f);
         if (p.length > 0) {
-          for (let { url: h, quality: $, lang: R, servername: k, headers: B } of p) {
-            let j = R === "LAT" ? "Latino" : R === "ESP" ? "Espa\xF1ol" : "Subtitulado", z = de[k] || k;
-            w.push({ name: "Embed69", title: `${$ || "1080p"} \xB7 ${j} \xB7 ${z}`, url: h, quality: $ || "1080p", headers: B || {} }), console.log(`[Embed69] Resolved: ${k} quality=${$} url=${h == null ? void 0 : h.substring(0, 50)}`);
+          for (let { url: h, quality: v, lang: S, servername: T, headers: j } of p) {
+            let K = S === "LAT" ? "Latino" : S === "ESP" ? "Espa\xF1ol" : "Subtitulado", F = ge[T] || T;
+            b.push({ name: "Embed69", title: `${v || "Unknown"} \xB7 ${K} \xB7 ${F}`, url: h, quality: v || "Unknown", headers: j || {} }), console.log(`[Embed69] Resolved: ${T} quality=${v} url=${h == null ? void 0 : h.substring(0, 50)}`);
           }
           console.log(`[Embed69] \u2713 Streams encontrados en ${d}, omitiendo idiomas de menor prioridad`);
           break;
         } else
           console.log(`[Embed69] Sin streams en ${d}, intentando siguiente idioma...`);
       }
-      let y = ((Date.now() - s) / 1e3).toFixed(2);
-      return console.log(`[Embed69] \u2713 ${w.length} streams en ${y}s`), w;
-    } catch (c) {
-      return console.log(`[Embed69] Error: ${c.message}`), [];
+      let R = ((Date.now() - s) / 1e3).toFixed(2);
+      return console.log(`[Embed69] \u2713 ${b.length} streams en ${R}s`), b;
+    } catch (r) {
+      return console.log(`[Embed69] Error: ${r.message}`), [];
     }
   });
 }

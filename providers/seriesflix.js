@@ -1,167 +1,195 @@
-var E = Object.defineProperty;
-var v = Object.getOwnPropertyDescriptor;
-var A = Object.getOwnPropertyNames;
-var b = Object.prototype.hasOwnProperty;
-var F = (n, o) => {
-  for (var t in o)
-    E(n, t, { get: o[t], enumerable: true });
-}, T = (n, o, t, s) => {
-  if (o && typeof o == "object" || typeof o == "function")
-    for (let r of A(o))
-      !b.call(n, r) && r !== t && E(n, r, { get: () => o[r], enumerable: !(s = v(o, r)) || s.enumerable });
+var x = Object.defineProperty;
+var R = Object.getOwnPropertyDescriptor;
+var b = Object.getOwnPropertyNames, y = Object.getOwnPropertySymbols;
+var N = Object.prototype.hasOwnProperty, F = Object.prototype.propertyIsEnumerable;
+var S = (n, e, t) => e in n ? x(n, e, { enumerable: true, configurable: true, writable: true, value: t }) : n[e] = t, U = (n, e) => {
+  for (var t in e || (e = {}))
+    N.call(e, t) && S(n, t, e[t]);
+  if (y)
+    for (var t of y(e))
+      F.call(e, t) && S(n, t, e[t]);
   return n;
 };
-var H = (n) => T(E({}, "__esModule", { value: true }), n);
-var p = (n, o, t) => new Promise((s, r) => {
-  var e = (a) => {
+var H = (n, e) => {
+  for (var t in e)
+    x(n, t, { get: e[t], enumerable: true });
+}, M = (n, e, t, l) => {
+  if (e && typeof e == "object" || typeof e == "function")
+    for (let r of b(e))
+      !N.call(n, r) && r !== t && x(n, r, { get: () => e[r], enumerable: !(l = R(e, r)) || l.enumerable });
+  return n;
+};
+var D = (n) => M(x({}, "__esModule", { value: true }), n);
+var d = (n, e, t) => new Promise((l, r) => {
+  var o = (a) => {
     try {
       i(t.next(a));
     } catch (c) {
       r(c);
     }
-  }, l = (a) => {
+  }, s = (a) => {
     try {
       i(t.throw(a));
     } catch (c) {
       r(c);
     }
-  }, i = (a) => a.done ? s(a.value) : Promise.resolve(a.value).then(e, l);
-  i((t = t.apply(n, o)).next());
+  }, i = (a) => a.done ? l(a.value) : Promise.resolve(a.value).then(o, s);
+  i((t = t.apply(n, e)).next());
 });
-var W = {};
-F(W, { getStreams: () => _ });
-module.exports = H(W);
-var S = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", U = "https://nupload.me";
-function D(n, o) {
-  return p(this, null, function* () {
+var K = {};
+H(K, { getStreams: () => q });
+module.exports = D(K);
+var k = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
+function L(n, e) {
+  return n >= 3840 || e >= 2160 ? "4K" : n >= 1920 || e >= 1080 ? "1080p" : n >= 1280 || e >= 720 ? "720p" : n >= 854 || e >= 480 ? "480p" : "360p";
+}
+function A(t) {
+  return d(this, arguments, function* (n, e = {}) {
+    try {
+      let r = yield (yield fetch(n, { headers: U({ "User-Agent": k }, e), redirect: "follow" })).text();
+      if (!r.includes("#EXT-X-STREAM-INF")) {
+        let i = n.match(/[_-](\d{3,4})p/);
+        return i ? `${i[1]}p` : "Unknown";
+      }
+      let o = 0, s = 0;
+      for (let i of r.split(`
+`)) {
+        let a = i.match(/RESOLUTION=(\d+)x(\d+)/);
+        if (a) {
+          let c = parseInt(a[2]);
+          c > s && (s = c, o = parseInt(a[1]));
+        }
+      }
+      return s > 0 ? L(o, s) : "Unknown";
+    } catch (l) {
+      return "Unknown";
+    }
+  });
+}
+var E = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", _ = "https://nupload.me";
+function z(n, e) {
+  return d(this, null, function* () {
     if (typeof XMLHttpRequest != "undefined")
-      return new Promise((t, s) => {
+      return new Promise((t, l) => {
         let r = new XMLHttpRequest();
         r.open("GET", n), r.responseType = "text";
-        for (let [e, l] of Object.entries(o))
-          r.setRequestHeader(e, l);
+        for (let [o, s] of Object.entries(e))
+          r.setRequestHeader(o, s);
         r.onload = () => {
           t(r.responseURL || n);
-        }, r.onerror = () => s(new Error("Network error via XHR")), r.send();
+        }, r.onerror = () => l(new Error("Network error via XHR")), r.send();
       });
     {
-      let t = yield fetch(n, { headers: o, redirect: "follow" });
+      let t = yield fetch(n, { headers: e, redirect: "follow" });
       if (!t.ok)
         throw new Error(`HTTP ${t.status} al seguir redirecci\xF3n`);
       return t.url;
     }
   });
 }
-function y(n) {
-  return p(this, null, function* () {
-    var o;
+function T(n) {
+  return d(this, null, function* () {
+    var e;
     try {
       console.log(`[Nupload] Resolviendo: ${n}`);
-      let t = yield fetch(n, { headers: { "User-Agent": S, Referer: U + "/" } }), s = yield t.text();
+      let t = yield fetch(n, { headers: { "User-Agent": E, Referer: _ + "/" } }), l = yield t.text();
       if (!t.ok)
         throw new Error(`HTTP ${t.status} al cargar el embed`);
-      let r = s.match(/([A-Za-z]+)\.forEach\s*\(function\s+\w+\s*\(value\)\s*\{[^}]+atob/);
+      let r = l.match(/([A-Za-z]+)\.forEach\s*\(function\s+\w+\s*\(value\)\s*\{[^}]+atob/);
       if (!r)
         return console.log("[Nupload] No se encontr\xF3 patr\xF3n de ofuscaci\xF3n ni iframe."), null;
-      let e = r[1], l = s.match(new RegExp(e + "\\.forEach[^-]+-\\s*(\\d+)"));
-      if (!l)
+      let o = r[1], s = l.match(new RegExp(o + "\\.forEach[^-]+-\\s*(\\d+)"));
+      if (!s)
         return console.log("[Nupload] No se pudo extraer el offset num\xE9rico"), null;
-      let i = parseInt(l[1]), a = s.match(new RegExp("var\\s+" + e + "\\s*=\\s*(\\[[^\\]]+\\])"));
+      let i = parseInt(s[1]), a = l.match(new RegExp("var\\s+" + o + "\\s*=\\s*(\\[[^\\]]+\\])"));
       if (!a)
         return console.log("[Nupload] No se encontr\xF3 el array de valores ofuscados"), null;
-      let c = JSON.parse(a[1]), d = "";
-      c.forEach(($) => {
-        d += String.fromCharCode(parseInt(atob($).replace(/\D/g, "")) - i);
+      let c = JSON.parse(a[1]), u = "";
+      c.forEach((w) => {
+        u += String.fromCharCode(parseInt(atob(w).replace(/\D/g, "")) - i);
       });
-      let g = (o = s.match(/var sesz\s*=\s*"([^"]+)"/)) == null ? void 0 : o[1];
-      if (!g)
+      let h = (e = l.match(/var sesz\s*=\s*"([^"]+)"/)) == null ? void 0 : e[1];
+      if (!h)
         return console.log("[Nupload] No se encontr\xF3 el token sesz"), null;
-      let m = d + "?s=" + g;
+      let v = u + "?s=" + h;
       console.log("[Nupload] Siguiendo redirecci\xF3n de la URL construida...");
-      let f = yield D(m, { "User-Agent": S }), x = { "User-Agent": S, Referer: "https://nupload.me/", Origin: "https://nupload.me" }, w = "Unknown";
-      return console.log(`[Nupload] URL encontrada (${w}): ${f.substring(0, 80)}...`), { url: f, quality: w, headers: x };
+      let f = yield z(v, { "User-Agent": E }), g = { "User-Agent": E, Referer: "https://nupload.me/", Origin: "https://nupload.me" }, $ = yield A(f, { Referer: "https://nupload.me/", "User-Agent": E });
+      return console.log("[Nupload] Quality detectada:", $), console.log(`[Nupload] URL encontrada (${$}): ${f.substring(0, 80)}...`), { url: f, quality: $, headers: g };
     } catch (t) {
       return console.log(`[Nupload] Error: ${t.message}`), null;
     }
   });
 }
-var N = "439c478a771f35c05022f9feabcca01c", R = "https://seriesflixhd.buzz", L = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-function h(n) {
+var I = "439c478a771f35c05022f9feabcca01c", P = "https://seriesflixhd.best", W = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+function m(n) {
   return n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/&/g, "y").replace(/[^a-z0-9\s-]/g, " ").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 }
-function M(n, o) {
-  return p(this, null, function* () {
-    let t = null;
-    try {
-      let s = `https://api.themoviedb.org/3/${o}/${n}?api_key=${N}&language=es-ES`, r = yield fetch(s).then((e) => e.json());
-      t = o === "movie" ? r.title : r.name;
-    } catch (s) {
-    }
-    for (let s of ["es-MX", "en-US"])
-      try {
-        let r = `https://api.themoviedb.org/3/${o}/${n}?api_key=${N}&language=${s}`, e = yield fetch(r).then((c) => c.json()), l = o === "movie" ? e.title : e.name, i = o === "movie" ? e.original_title : e.original_name;
-        if (s === "es-MX" && /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(l))
-          continue;
-        let a = (e.release_date || e.first_air_date || "").substring(0, 4);
-        return console.log(`[SeriesFlixHD] TMDB (${s}): "${l}" (${a})`), { title: l, originalTitle: i, year: a, titleEs: t };
-      } catch (r) {
-      }
-    return null;
+function B(n, e) {
+  return d(this, null, function* () {
+    let [t, l, r] = yield Promise.all(["es-ES", "es-MX", "en-US"].map((u) => fetch(`https://api.themoviedb.org/3/${e}/${n}?api_key=${I}&language=${u}`).then((h) => h.json()).catch(() => null))), o = t ? e === "movie" ? t.title : t.name : null, s = l && !/[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/.test(e === "movie" ? l.title : l.name) ? l : r;
+    if (!s)
+      return null;
+    let i = e === "movie" ? s.title : s.name, a = e === "movie" ? s.original_title : s.original_name, c = (s.release_date || s.first_air_date || "").substring(0, 4);
+    return console.log(`[SeriesFlixHD] TMDB: "${i}" (${c})`), { title: i, originalTitle: a, year: c, titleEs: o };
   });
 }
-function k(n) {
-  return p(this, null, function* () {
-    let o = `${R}/episodio/${n}`;
+function C(n) {
+  return d(this, null, function* () {
+    let e = `${P}/episodio/${n}`;
     try {
-      let t = yield fetch(o, { headers: { "User-Agent": L, Accept: "text/html" } });
+      let t = yield fetch(e, { headers: { "User-Agent": W, Accept: "text/html" } });
       return t.ok ? yield t.text() : null;
     } catch (t) {
       return console.log(`[SeriesFlixHD] fetch error: ${t.message}`), null;
     }
   });
 }
-function z(n) {
-  let o = { latino: [], castellano: [] }, t = n.match(/LATINO[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/), s = n.match(/CASTELLANO[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/), r = (e) => e ? [...e.matchAll(/data-url="([^"]+)"/g)].map((l) => {
+function O(n) {
+  let e = { latino: [], castellano: [] }, t = n.match(/LATINO[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/), l = n.match(/CASTELLANO[\s\S]*?<ul[^>]*>([\s\S]*?)<\/ul>/), r = (o) => o ? [...o.matchAll(/data-url="([^"]+)"/g)].map((s) => {
     try {
-      return atob(l[1]);
+      return atob(s[1]);
     } catch (i) {
       return console.log(`[SeriesFlixHD] Error decodificando base64: ${i.message}`), null;
     }
-  }).filter(Boolean).filter((l) => l.includes("nupload.me/watch/")) : [];
-  return o.latino = r(t == null ? void 0 : t[1]), o.castellano = r(s == null ? void 0 : s[1]), o;
+  }).filter(Boolean).filter((s) => s.includes("nupload.me/watch/")) : [];
+  return e.latino = r(t == null ? void 0 : t[1]), e.castellano = r(l == null ? void 0 : l[1]), e;
 }
-function _(n, o, t, s) {
-  return p(this, null, function* () {
-    if (!n || o !== "tv")
+function q(n, e, t, l) {
+  return d(this, null, function* () {
+    if (!n || e !== "tv")
       return [];
     let r = Date.now();
-    console.log(`[SeriesFlixHD] Buscando: TMDB ${n} S${t}E${s}`);
+    console.log(`[SeriesFlixHD] Buscando: TMDB ${n} S${t}E${l}`);
     try {
-      let e = yield M(n, o);
-      if (!e)
+      let o = yield B(n, e);
+      if (!o)
         return [];
-      let l = String(s), i = parseInt(t), a = [];
-      e.title && (a.push(`${h(e.title)}-${i}x${l}`), a.push(`${h(e.title)}-${e.year}-${i}x${l}`)), e.originalTitle && e.originalTitle !== e.title && (a.push(`${h(e.originalTitle)}-${i}x${l}`), a.push(`${h(e.originalTitle)}-${e.year}-${i}x${l}`)), e.titleEs && e.titleEs !== e.title && (a.push(`${h(e.titleEs)}-${i}x${l}`), a.push(`${h(e.titleEs)}-${e.year}-${i}x${l}`));
+      let s = String(l), i = parseInt(t), a = [];
+      o.title && (a.push(`${m(o.title)}-${i}x${s}`), a.push(`${m(o.title)}-${o.year}-${i}x${s}`)), o.originalTitle && o.originalTitle !== o.title && (a.push(`${m(o.originalTitle)}-${i}x${s}`), a.push(`${m(o.originalTitle)}-${o.year}-${i}x${s}`)), o.titleEs && o.titleEs !== o.title && (a.push(`${m(o.titleEs)}-${i}x${s}`), a.push(`${m(o.titleEs)}-${o.year}-${i}x${s}`));
       let c = null;
-      for (let f of a)
-        if (console.log(`[SeriesFlixHD] Probando: /episodio/${f}`), c = yield k(f), c && c.includes("data-url"))
-          break;
-      if (!c || !c.includes("data-url"))
-        return console.log("[SeriesFlixHD] No encontrado"), [];
-      let d = z(c);
-      console.log(`[SeriesFlixHD] Latino: ${d.latino.length} | Castellano: ${d.castellano.length}`);
-      let g = [];
-      for (let [f, x] of [[d.latino, "Latino"], [d.castellano, "Castellano"]]) {
+      try {
+        c = yield Promise.any(a.map((f) => C(f).then((g) => {
+          if (!g || !g.includes("data-url"))
+            throw new Error("not found");
+          return console.log("[SeriesFlixHD] \u2713 Slug encontrado"), g;
+        })));
+      } catch (f) {
+        c = null;
+      }
+      let u = O(c);
+      console.log(`[SeriesFlixHD] Latino: ${u.latino.length} | Castellano: ${u.castellano.length}`);
+      let h = [];
+      for (let [f, g] of [[u.latino, "Latino"], [u.castellano, "Castellano"]]) {
         if (f.length === 0)
           continue;
-        let $ = (yield Promise.allSettled(f.map((u) => y(u)))).filter((u) => u.status === "fulfilled" && u.value).map((u, B) => ({ name: "SeriesFlixHD", title: `${u.value.quality} \xB7 ${x} \xB7 Nupload`, url: u.value.url, quality: u.value.quality, headers: u.value.headers }));
-        if (g.push(...$), $.length > 0)
+        let w = (yield Promise.allSettled(f.map((p) => T(p)))).filter((p) => p.status === "fulfilled" && p.value).map((p, X) => ({ name: "SeriesFlixHD", title: `${p.value.quality} \xB7 ${g} \xB7 Nupload`, url: p.value.url, quality: p.value.quality, headers: p.value.headers }));
+        if (h.push(...w), w.length > 0)
           break;
       }
-      let m = ((Date.now() - r) / 1e3).toFixed(2);
-      return console.log(`[SeriesFlixHD] \u2713 ${g.length} streams en ${m}s`), g;
-    } catch (e) {
-      return console.log(`[SeriesFlixHD] Error: ${e.message}`), [];
+      let v = ((Date.now() - r) / 1e3).toFixed(2);
+      return console.log(`[SeriesFlixHD] \u2713 ${h.length} streams en ${v}s`), h;
+    } catch (o) {
+      return console.log(`[SeriesFlixHD] Error: ${o.message}`), [];
     }
   });
 }
