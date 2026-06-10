@@ -5,9 +5,9 @@
     {
       "id": "embed69",
       "name": "Embed69",
-      "description": "Streams en Latino/Español/Subtitulado desde Embed69. StreamWish, VOE. (Última versión)",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "description": "Streams en Latino/Español/Subtitulado desde Embed69. StreamWish, VOE.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
@@ -91,14 +91,14 @@
     {
       "id": "hackstore",
       "name": "HackStore",
-      "description": "API Nativa de Películas en HD",
-      "version": "12.9.2",
-      "author": "latinokodi",
+      "description": "Streams en Latino desde HackStore.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/hackstore2.js",
+      "filename": "providers/hackstore.js",
       "enabled": true,
       "logo": "https://hackstore.mx/wp-content/uploads/2025/07/cropped-fire-1-180x180.png",
       "contentLanguage": [
@@ -137,9 +137,9 @@
     {
       "id": "cinecalidad",
       "name": "CineCalidad",
-      "description": "Películas en Latino desde CineCalidad. Vimeos, VOE, Filemoon, StreamWish. (Última versión)",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "description": "Películas en Latino desde CineCalidad. Vimeos, VOE, StreamWish.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie"
       ],
@@ -153,9 +153,9 @@
     {
       "id": "seriesmetro",
       "name": "SeriesMetro",
-      "description": "Streams en Latino desde SeriesMetro. Fastream. (Última versión)",
-      "version": "1.1.0",
-      "author": "latinokodi",
+      "description": "Streams en Latino desde SeriesMetro. Fastream.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
@@ -170,9 +170,9 @@
     {
       "id": "xupalace",
       "name": "Xupalace",
-      "description": "Streams en Latino desde Xupalace. StreamWish, VOE, Vidhide. (Última versión)",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "description": "Streams en Latino desde Xupalace. StreamWish, VOE, Vidhide.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
@@ -302,9 +302,9 @@
     {
       "id": "lamovie",
       "name": "LaMovie",
-      "description": "Proveedor premium con enlaces directos en 1080p y enfoque Latino. (Última versión)",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "description": "Streams en Latino desde LaMovie.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
@@ -406,8 +406,8 @@
       "id": "zoowomaniacos",
       "name": "Zoowomaniacos",
       "description": "Películas de culto, cine de autor y difíciles de encontrar. OkRu.",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie"
       ],
@@ -421,8 +421,8 @@
       "id": "peliserieshoy",
       "name": "PelisSeriesHoy",
       "description": "Streams en Latino desde PelisSeriesHoy.",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
@@ -704,9 +704,9 @@
     {
       "id": "hackstore",
       "name": "Hackstore",
-      "description": "Proveedor de streaming Hackstore adaptado para Luvio.",
-      "version": "1.0.0",
-      "author": "latinokodi",
+      "description": "Streams en Latino desde HackStore.",
+      "version": "2.0.0",
+      "author": "KennethJYS",
       "supportedTypes": [
         "movie",
         "tv"
