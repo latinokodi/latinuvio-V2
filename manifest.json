@@ -7,7 +7,7 @@
       "name": "Embed69",
       "description": "Streams en Latino/Español/Subtitulado desde Embed69. StreamWish, VOE.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -93,7 +93,7 @@
       "name": "HackStore",
       "description": "Streams en Latino desde HackStore.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -139,7 +139,7 @@
       "name": "CineCalidad",
       "description": "Películas en Latino desde CineCalidad. Vimeos, VOE, StreamWish.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie"
       ],
@@ -155,7 +155,7 @@
       "name": "SeriesMetro",
       "description": "Streams en Latino desde SeriesMetro. Fastream.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -172,7 +172,7 @@
       "name": "Xupalace",
       "description": "Streams en Latino desde Xupalace. StreamWish, VOE, Vidhide.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -304,7 +304,7 @@
       "name": "LaMovie",
       "description": "Streams en Latino desde LaMovie.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -407,7 +407,7 @@
       "name": "Zoowomaniacos",
       "description": "Películas de culto, cine de autor y difíciles de encontrar. OkRu.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie"
       ],
@@ -422,7 +422,7 @@
       "name": "PelisSeriesHoy",
       "description": "Streams en Latino desde PelisSeriesHoy.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
@@ -706,7 +706,7 @@
       "name": "Hackstore",
       "description": "Streams en Latino desde HackStore.",
       "version": "2.0.0",
-      "author": "KennethJYS",
+      "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
