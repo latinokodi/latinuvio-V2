@@ -5,8 +5,8 @@
     {
       "id": "embed69",
       "name": "Embed69",
-      "description": "Streams en Latino/Español/Subtitulado desde Embed69. StreamWish, VOE.",
-      "version": "2.0.0",
+      "description": "Películas y series vía embed69.org",
+      "version": "3.0.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
@@ -17,6 +17,10 @@
       "logo": "https://play-lh.googleusercontent.com/5oy8Mdjfj1sEzBWe5WxuQ_8MqFRC6Yu-PM2c4QkXEN_isAQvqrWeMwZV7z3__lDm8Q",
       "contentLanguage": [
         "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
       ]
     },
     {
@@ -91,14 +95,14 @@
     {
       "id": "hackstore",
       "name": "HackStore",
-      "description": "Streams en Latino desde HackStore.",
-      "version": "2.0.0",
+      "description": "API Nativa de Películas en HD",
+      "version": "12.9.2",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
       ],
-      "filename": "providers/hackstore.js",
+      "filename": "providers/hackstore2.js",
       "enabled": true,
       "logo": "https://hackstore.mx/wp-content/uploads/2025/07/cropped-fire-1-180x180.png",
       "contentLanguage": [
@@ -137,8 +141,8 @@
     {
       "id": "cinecalidad",
       "name": "CineCalidad",
-      "description": "Películas en Latino desde CineCalidad. Vimeos, VOE, StreamWish.",
-      "version": "2.0.0",
+      "description": "Películas en HD (Latino) con servidores rápidos como Voe y Filemoon",
+      "version": "2.3.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie"
@@ -148,13 +152,19 @@
       "logo": "https://image.firstory-cdn.me/Avatar/cm0dkng7s07o601qjdh958yiy/1724832356858.jpg",
       "contentLanguage": [
         "es"
-      ]
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
     },
     {
       "id": "seriesmetro",
       "name": "SeriesMetro",
-      "description": "Streams en Latino desde SeriesMetro. Fastream.",
-      "version": "2.0.0",
+      "description": "Especialista en series y películas (Latino) con servidores Fastream",
+      "version": "2.4.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
@@ -165,13 +175,19 @@
       "logo": "https://www3.seriesmetro.net/wp-content/uploads/2024/04/cropped-Favicon2-180x180.png",
       "contentLanguage": [
         "es"
-      ]
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
     },
     {
       "id": "xupalace",
-      "name": "Xupalace",
-      "description": "Streams en Latino desde Xupalace. StreamWish, VOE, Vidhide.",
-      "version": "2.0.0",
+      "name": "XuPalace",
+      "description": "Películas y series en alta definición (Latino, Español y Subtitulado)",
+      "version": "6.1.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
@@ -182,7 +198,13 @@
       "logo": "https://static.vecteezy.com/system/resources/previews/004/532/988/non_2x/cinema-set-in-flat-design-style-popcorn-soda-or-coffee-movie-clapper-and-reel-vector.jpg",
       "contentLanguage": [
         "es"
-      ]
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
     },
     {
       "id": "fuegocine",
@@ -302,8 +324,8 @@
     {
       "id": "lamovie",
       "name": "LaMovie",
-      "description": "Streams en Latino desde LaMovie.",
-      "version": "2.0.0",
+      "description": "Proveedor premium con enlaces directos en 1080p y enfoque Latino.",
+      "version": "2.5.5",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
@@ -314,7 +336,13 @@
       "logo": "https://lamovie.cc/img/favicon.png",
       "contentLanguage": [
         "es"
-      ]
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
     },
     {
       "id": "videasy",
@@ -696,22 +724,6 @@
         "tv"
       ],
       "filename": "providers/pelispedia.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
-      "id": "hackstore",
-      "name": "Hackstore",
-      "description": "Streams en Latino desde HackStore.",
-      "version": "2.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/hackstore.js",
       "enabled": true,
       "contentLanguage": [
         "es"
