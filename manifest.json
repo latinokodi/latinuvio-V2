@@ -430,7 +430,7 @@
         "tv"
       ],
       "filename": "providers/tioanime.js",
-      "enabled": false,
+      "enabled": true,
       "contentLanguage": [
         "es"
       ]
@@ -539,7 +539,7 @@
         "tv"
       ],
       "filename": "providers/seriesgato.js",
-      "enabled": false,
+      "enabled": true,
       "contentLanguage": [
         "es"
       ]

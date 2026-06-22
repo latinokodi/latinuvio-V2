@@ -47,7 +47,7 @@ const CryptoJS = require("crypto-js");
 
 const MIRRORS = {
     STREAMWISH: ["hlswish", "streamwish", "hglink", "hglamioz", "audinifer",
-                 "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix"],
+                 "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix", "viewsb", "sfastwish"],
     VIDHIDE:    ["vidhide", "minochinos", "vadisov", "vaiditv", "amusemre",
                  "callistanise", "vhaudm", "mdfury", "dintezuvio", "acek-cdn",
                  "vedonm", "vidhidepro", "vidhidevip", "masukestin", "filelions"],
@@ -487,13 +487,6 @@ async function extractStreams(url) {
         const html = await fetch(url, { headers: HEADERS }).then(r => r.text());
         const streams = [];
         
-        const playerBlockMatch = html.match(/<div class="TPlayer">(.*?)<\/span>/s);
-        if (!playerBlockMatch) return streams;
-        const playerBlock = playerBlockMatch[1];
-        
-        const optionsRegex = /id="Opt.*?src="([^"]+)"/g;
-        let optMatch;
-        
         const langMap = {};
         const langRegex = /data-tplayernv="Opt([^"]+)".*?alt="([^"]+)"/g;
         let lMatch;
@@ -501,35 +494,68 @@ async function extractStreams(url) {
             langMap[lMatch[1]] = lMatch[2].split("-")[0]?.trim() || "Latino";
         }
         
-        const iframeRegex = /id="Opt([^"]+)".*?src="([^"]+)"/g;
-        while ((optMatch = iframeRegex.exec(playerBlock)) !== null) {
-            const optId = optMatch[1];
-            let streamUrl = optMatch[2];
-            const rawLang = langMap[optId] || "Latino";
-            
-            let lang = "Lat";
-            if (rawLang.includes("Castellano")) lang = "Esp";
-            if (rawLang.includes("Subtitulado")) lang = "Vose";
-            
-            if (streamUrl.includes("links")) {
-                continue;
-            }
-
-            if (streamUrl.startsWith("//")) {
-                streamUrl = "https:" + streamUrl;
-            }
-
-            const resolved = await resolveEmbed(streamUrl);
-            if (resolved && resolved.url) {
-                streams.push({
-                    name: "SeriesGato",
-                    title: `${resolved.quality || "HD"} · ${lang} · ${resolved.server}`,
-                    url: resolved.url,
-                    quality: resolved.quality || "HD",
-                    headers: resolved.headers || { Referer: streamUrl }
-                });
+        const optRegex = /id="Opt(\d+)"[^>]*>[\s\S]*?<iframe[^>]*src="([^"]+)"/gi;
+        let optMatch;
+        const trembedUrls = [];
+        
+        while ((optMatch = optRegex.exec(html)) !== null) {
+            let src = optMatch[2];
+            src = src.replace(/&amp;/g, '&').replace(/&#038;/g, '&');
+            if (src.includes("trembed=") && src.includes("trid=")) {
+                trembedUrls.push({ optId: optMatch[1], src, lang: langMap[optMatch[1]] || "Latino" });
             }
         }
+        
+        const encodedRegex = /id="Opt(\d+)"[^>]*>[\s\S]*?&lt;iframe[^&]*src=&quot;([^&]+)&quot;/gi;
+        while ((optMatch = encodedRegex.exec(html)) !== null) {
+            let src = optMatch[2];
+            src = src.replace(/&amp;/g, '&').replace(/&#038;/g, '&');
+            if (src.includes("trembed=") && src.includes("trid=")) {
+                if (!trembedUrls.find(t => t.optId === optMatch[1])) {
+                    trembedUrls.push({ optId: optMatch[1], src, lang: langMap[optMatch[1]] || "Latino" });
+                }
+            }
+        }
+        
+        console.log(`[SeriesGato] Found ${trembedUrls.length} trembed URLs`);
+        
+        for (const { optId, src: trembedUrl, lang } of trembedUrls) {
+            try {
+                if (trembedUrl.includes("viewsb")) {
+                    console.log(`[SeriesGato] Skipping viewsb embed (SPA)`);
+                    continue;
+                }
+                
+                const trembedResp = await fetch(trembedUrl, { headers: HEADERS });
+                if (!trembedResp.ok) continue;
+                const trembedHtml = await trembedResp.text();
+                
+                const iframeMatch = trembedHtml.match(/<iframe[^>]*src="([^"]+)"/i);
+                if (!iframeMatch) continue;
+                
+                let embedUrl = iframeMatch[1];
+                if (embedUrl.startsWith("//")) embedUrl = "https:" + embedUrl;
+                embedUrl = embedUrl.replace(/&amp;/g, '&').replace(/&#038;/g, '&');
+                
+                let langLabel = "Lat";
+                if (lang.includes("Castellano")) langLabel = "Esp";
+                if (lang.includes("Subtitulado")) langLabel = "Vose";
+                
+                const resolved = await resolveEmbed(embedUrl);
+                if (resolved && resolved.url) {
+                    streams.push({
+                        name: "SeriesGato",
+                        title: `${resolved.quality || "HD"} \u00b7 ${langLabel} \u00b7 ${resolved.server}`,
+                        url: resolved.url,
+                        quality: resolved.quality || "HD",
+                        headers: resolved.headers || { Referer: embedUrl }
+                    });
+                }
+            } catch (e) {
+                console.log(`[SeriesGato] Trembed ${optId} error: ${e.message}`);
+            }
+        }
+        
         return streams;
     } catch (e) {
         console.log(`[SeriesGato] Extract Error: ${e.message}`);
@@ -538,29 +564,55 @@ async function extractStreams(url) {
 }
 
 async function getStreams(id, type, season, episode) {
-    if (type !== "tv") return []; // SeriesGato mainly for TV
+    if (type !== "tv") return [];
 
     console.log(`[SeriesGato] Resolving: ${type} ${id}`);
     const info = await getTMDBInfo(id, type);
     if (!info) return [];
 
     const results = await search(info.title);
-    if (results.length === 0) return [];
+    if (results.length === 0) {
+        console.log(`[SeriesGato] No search results for: ${info.title}`);
+        return [];
+    }
 
     const target = results[0];
-    const seriesHtml = await fetch(target.url, { headers: HEADERS }).then(r => r.text());
+    console.log(`[SeriesGato] Selected: ${target.title} -> ${target.url}`);
     
-    // Find the specific episode URL in the season tab
-    const seasonRegex = new RegExp(`data-tab="${season}"(.*?)</table>`, 's');
-    const seasonMatch = seriesHtml.match(seasonRegex);
-    if (!seasonMatch) return [];
+    let slug = target.url.replace(/https?:\/\/[^/]+\//, "").replace(/\/$/, "");
+    slug = slug.replace(/-[a-z]$/, "");
     
-    const epRegex = new RegExp(`href="([^"]+)".*?<span class="Num">${episode}</span>`, 'is');
-    const epMatch = seasonMatch[1].match(epRegex);
-    if (!epMatch) return [];
+    const S = String(season);
+    const E = String(episode);
     
-    const epUrl = epMatch[1];
-    return await extractStreams(epUrl);
+    const epUrls = [
+        `${BASE_URL}/ver/capitulo/${slug}-${S}x${E}/`,
+        `${BASE_URL}/ver/capitulo/${slug}-${S}x${E.padStart(2, '0')}/`,
+    ];
+    
+    for (const epUrl of epUrls) {
+        try {
+            const resp = await fetch(epUrl, { headers: HEADERS });
+            if (resp.ok) {
+                console.log(`[SeriesGato] Found episode at: ${epUrl}`);
+                return await extractStreams(epUrl);
+            }
+        } catch (e) {}
+    }
+    
+    console.log(`[SeriesGato] URL guessing failed, searching series page HTML...`);
+    try {
+        const seriesHtml = await fetch(target.url, { headers: HEADERS }).then(r => r.text());
+        const epPattern = new RegExp(`href="([^"]*ver/capitulo/[^"]*-${S}x${E}[^"]*)"`, 'i');
+        const m = seriesHtml.match(epPattern);
+        if (m) {
+            console.log(`[SeriesGato] Found episode via HTML: ${m[1]}`);
+            return await extractStreams(m[1]);
+        }
+    } catch (e) {}
+    
+    console.log(`[SeriesGato] Episode not found`);
+    return [];
 }
 
 module.exports = { getStreams };
