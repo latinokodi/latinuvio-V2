@@ -34,7 +34,7 @@
         "tv"
       ],
       "filename": "providers/sololatino.js",
-      "enabled": true,
+      "enabled": false,
       "logo": "https://sololatino.net/images/logo.png",
       "contentLanguage": [
         "es"
@@ -194,7 +194,7 @@
         "tv"
       ],
       "filename": "providers/xupalace.js",
-      "enabled": true,
+      "enabled": false,
       "logo": "https://static.vecteezy.com/system/resources/previews/004/532/988/non_2x/cinema-set-in-flat-design-style-popcorn-soda-or-coffee-movie-clapper-and-reel-vector.jpg",
       "contentLanguage": [
         "es"
@@ -276,52 +276,6 @@
       "supportsExternalPlayer": true
     },
     {
-      "id": "cinemacity",
-      "name": "CinemaCity",
-      "description": "Películas de estreno (Filtro Estricto Latino).",
-      "version": "1.0.4",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/cinemacity.js",
-      "enabled": true,
-      "logo": "https://cinemacity.cc/templates/cinemacity/images/favicon.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": false
-    },
-    {
-      "id": "brazucaplay",
-      "name": "BrazucaPlay",
-      "description": "Películas y series en Latino (vía Cuevana/Kayo).",
-      "version": "1.0.1",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/brazucaplay.js",
-      "enabled": true,
-      "logo": "https://i.postimg.cc/9F6zdnyb/brazucaplay.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "lamovie",
       "name": "LaMovie",
       "description": "Proveedor premium con enlaces directos en 1080p y enfoque Latino.",
@@ -334,29 +288,6 @@
       "filename": "providers/lamovie.js",
       "enabled": true,
       "logo": "https://lamovie.cc/img/favicon.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
-      "id": "videasy",
-      "name": "VidEasy Latino",
-      "description": "Premium streams via OnionPlay & Cuevana (1080p Latino).",
-      "version": "2.8.1",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/videasy.js",
-      "enabled": true,
-      "logo": "https://player.videasy.net/favicon.ico",
       "contentLanguage": [
         "es"
       ],
@@ -389,26 +320,6 @@
       ],
       "limited": false,
       "supportsExternalPlayer": true
-    },
-    {
-      "id": "doramasflix",
-      "name": "DoramasFlix",
-      "description": "Doramas Coreanos, Chinos, Japoneses y Asiaticos en Espanol. Estructura oficial Nuvio con extracción múltiple.",
-      "version": "1.2.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/doramasflix.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ]
     },
     {
       "id": "vimeus",
@@ -478,21 +389,6 @@
       ]
     },
     {
-      "id": "seriesflix",
-      "name": "SeriesFlix",
-      "description": "Series en Latino y Español desde SeriesFlixHD.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/seriesflix.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "cinemitas",
       "name": "Cinemitas",
       "description": "Películas y series desde Cinemitas. Multi-resolución.",
@@ -534,7 +430,7 @@
         "tv"
       ],
       "filename": "providers/tioanime.js",
-      "enabled": true,
+      "enabled": false,
       "contentLanguage": [
         "es"
       ]
@@ -618,22 +514,6 @@
       ]
     },
     {
-      "id": "detodopeliculas",
-      "name": "Detodopeliculas",
-      "description": "Streams en Latino desde Detodopeliculas.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/detodopeliculas.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "gnula",
       "name": "Gnula",
       "description": "Películas, series y anime en Latino/Español desde Gnula.hd.",
@@ -659,7 +539,7 @@
         "tv"
       ],
       "filename": "providers/seriesgato.js",
-      "enabled": true,
+      "enabled": false,
       "contentLanguage": [
         "es"
       ]
@@ -674,27 +554,10 @@
         "tv"
       ],
       "filename": "providers/seriespapaya.js",
-      "enabled": true,
+      "enabled": false,
       "contentLanguage": [
         "es"
       ]
-    },
-    {
-      "id": "zonaleros",
-      "name": "ZonaLeros",
-      "description": "Películas y series en HD con audio Latino desde Zona-Leros.com.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/zonaleros.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://zona-leros.com/favicon.ico"
     },
     {
       "id": "verpelis",
@@ -712,22 +575,6 @@
         "es"
       ],
       "logo": "https://verpelis.gratis/favicon.ico"
-    },
-    {
-      "id": "pelispedia",
-      "name": "Pelispedia",
-      "description": "Proveedor de streaming Pelispedia adaptado para Luvio.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/pelispedia.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
     }
   ]
 }
