@@ -2826,30 +2826,35 @@ function getStreams(tmdbId, mediaType, season, episode, title) {
       yield sleep(1e3);
       const { data: scanData } = yield axios3.post(`${BASE_URL}/s.php`, `a=1&tok=${token}`, { headers: postH });
       const uniqueServers = /* @__PURE__ */ new Map();
-      if (scanData && scanData.s) {
+      if (scanData && Array.isArray(scanData.s)) {
         scanData.s.forEach((ser) => {
-          if (ser[1])
+          if (ser && ser[1])
             uniqueServers.set(ser[1], ser);
         });
       }
       if (scanData && scanData.langs_s) {
-        const lat = scanData.langs_s.LAT || [];
-        const esp = scanData.langs_s.ESP || scanData.langs_s.CAS || [];
+        const lat = Array.isArray(scanData.langs_s.LAT) ? scanData.langs_s.LAT : [];
+        const esp = Array.isArray(scanData.langs_s.ESP) ? scanData.langs_s.ESP
+                  : Array.isArray(scanData.langs_s.CAS) ? scanData.langs_s.CAS : [];
         lat.forEach((ser) => {
-          if (ser[1])
+          if (ser && ser[1])
             uniqueServers.set(ser[1], __spreadProps(__spreadValues({}, ser), { lang: "Latino" }));
         });
         esp.forEach((ser) => {
-          if (ser[1])
+          if (ser && ser[1])
             uniqueServers.set(ser[1], __spreadProps(__spreadValues({}, ser), { lang: "Castellano" }));
         });
       }
       const servers = Array.from(uniqueServers.values()).filter((ser) => {
         const name = ser[0];
-        return !["Seek", "Lulu"].some((x) => name.includes(x));
+        return name && !["Seek", "Lulu"].some((x) => name.includes(x));
       }).slice(0, 5);
       const resultsRaw = yield Promise.all(servers.map((ser) => __async(this, null, function* () {
-        const [name, id] = ser;
+        // Use property access instead of array destructuring — ser can be either an
+        // array or a spread-object {"0": name, "1": id, lang: ...}, and plain objects
+        // are not iterable so `const [name, id] = ser` would throw.
+        const name = ser[0];
+        const id   = ser[1];
         const lang = ser.lang || "Latino";
         let finalUrl = yield getDirectStream(id, token, cookie, playerUrl);
         if (finalUrl) {

@@ -1,6 +1,6 @@
 {
   "name": "Latinuvio V2",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scrapers": [
     {
       "id": "embed69",
@@ -27,14 +27,14 @@
       "id": "sololatino",
       "name": "SoloLatino",
       "description": "Servidores universales de alta gama con Player+ (Directo).",
-      "version": "3.3.0",
+      "version": "3.4.0",
       "author": "latinokodi",
       "supportedTypes": [
         "movie",
         "tv"
       ],
       "filename": "providers/sololatino.js",
-      "enabled": false,
+      "enabled": true,
       "logo": "https://sololatino.net/images/logo.png",
       "contentLanguage": [
         "es"
@@ -184,29 +184,6 @@
       "supportsExternalPlayer": true
     },
     {
-      "id": "xupalace",
-      "name": "XuPalace",
-      "description": "Películas y series en alta definición (Latino, Español y Subtitulado)",
-      "version": "6.1.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/xupalace.js",
-      "enabled": false,
-      "logo": "https://static.vecteezy.com/system/resources/previews/004/532/988/non_2x/cinema-set-in-flat-design-style-popcorn-soda-or-coffee-movie-clapper-and-reel-vector.jpg",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "fuegocine",
       "name": "FuegoCine",
       "description": "Películas y series con enlaces directos y alta velocidad.",
@@ -339,21 +316,6 @@
       "formats": [
         "m3u8",
         "mp4"
-      ]
-    },
-    {
-      "id": "zoowomaniacos",
-      "name": "Zoowomaniacos",
-      "description": "Películas de culto, cine de autor y difíciles de encontrar. OkRu.",
-      "version": "2.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie"
-      ],
-      "filename": "providers/zoowomaniacos.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
       ]
     },
     {
@@ -533,7 +495,7 @@
       "id": "seriesgato",
       "name": "SeriesGato",
       "description": "Una de las fuentes más actualizadas para series con audio dual (Latino/Inglés) desde Gatonplayseries.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "latinokodi",
       "supportedTypes": [
         "tv"
@@ -545,16 +507,16 @@
       ]
     },
     {
-      "id": "seriespapaya",
-      "name": "SeriesPapaya",
-      "description": "Gran catálogo de series, incluyendo contenido clásico y estrenos desde Magistv24.",
+      "id": "doramasflix",
+      "name": "DoramasFlix",
+      "description": "Doramas y series asiáticas en Latino y Subtitulado.",
       "version": "1.0.0",
       "author": "latinokodi",
       "supportedTypes": [
         "tv"
       ],
-      "filename": "providers/seriespapaya.js",
-      "enabled": false,
+      "filename": "providers/doramasflix.js",
+      "enabled": true,
       "contentLanguage": [
         "es"
       ]

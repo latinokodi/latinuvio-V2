@@ -470,6 +470,55 @@ async function resolveVoe(embedUrl) {
     return null;
 }
 
+// Resolve links.cuevana.ac or player.cuevana.ac embed pages.
+// The page stores embed URLs in onclick="go_to_player('URL')" attributes.
+async function resolveCuevana(embedUrl) {
+    try {
+        // Normalise: both links.cuevana.ac/play/ and player.cuevana.ac/f/ are supported
+        const res = await fetch(embedUrl, {
+            headers: { "User-Agent": USER_AGENT, "Referer": "https://vip.seriesgato.pw/" }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+
+        // Extract all go_to_player URLs
+        const playerUrls = [];
+        const re = /go_to_player\(['"](https?:\/\/[^'"]+)['"]/g;
+        let m;
+        while ((m = re.exec(html)) !== null) {
+            playerUrls.push(m[1].replace(/#.*$/, '').replace(/&amp;/g, '&'));
+        }
+
+        if (playerUrls.length === 0) return null;
+        console.log(`[SeriesGato] Cuevana found ${playerUrls.length} embed URLs`);
+
+        // Try to resolve with known resolvers, stop at first success
+        for (const pUrl of playerUrls) {
+            const resolved = await resolveEmbed(pUrl);
+            if (resolved && resolved.url) {
+                console.log(`[SeriesGato] Cuevana resolved via ${resolved.server}: ${pUrl}`);
+                return resolved;
+            }
+        }
+
+        // Fallback: return first streamwish/streamtape URL as raw embed
+        for (const pUrl of playerUrls) {
+            const lc = pUrl.toLowerCase();
+            if (lc.includes('streamwish') || lc.includes('streamtape') ||
+                lc.includes('dood') || lc.includes('upstream') ||
+                lc.includes('streamhub') || lc.includes('vtube') ||
+                lc.includes('player.cuevana')) {
+                console.log(`[SeriesGato] Cuevana fallback embed: ${pUrl}`);
+                return { url: pUrl, server: 'Cuevana', quality: '720p',
+                         headers: { 'Referer': 'https://links.cuevana.ac/', 'User-Agent': USER_AGENT } };
+            }
+        }
+    } catch (e) {
+        console.log(`[SeriesGato] Cuevana error: ${e.message}`);
+    }
+    return null;
+}
+
 async function resolveEmbed(url) {
     if (isMirror(url, "STREAMWISH")) return resolveStreamwish(url);
     if (isMirror(url, "VIDHIDE"))    return resolveVidhide(url);
@@ -479,6 +528,7 @@ async function resolveEmbed(url) {
     if (isMirror(url, "STREAMTAPE")) return resolveStreamtape(url);
     const u = url.toLowerCase();
     if (u.includes("waaw.to") || u.includes("netu.tv")) return resolveWaaw(url);
+    if (u.includes("cuevana.ac"))    return resolveCuevana(url);
     return null;
 }
 
