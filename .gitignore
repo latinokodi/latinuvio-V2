@@ -3,6 +3,10 @@ node_modules/
 package.json
 package-lock.json
 
+# Agent/test workspaces
+.agent/
+tests/
+
 # Svelte / Vite / Tauri local source directories
 src/
 src-tauri/

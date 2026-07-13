@@ -1292,8 +1292,52 @@ var { resolve: resolveVoe } = require_voe();
 var { resolve: resolveHlswish } = require_hlswish();
 var { resolve: resolveFilemoon } = require_filemoon();
 var { resolve: resolveVidhide } = require_vidhide();
+var CryptoJS3 = require("crypto-js");
 var INDIVIDUAL_TIMEOUT = 1e4;
 var BATCH_SIZE = 20;
+function deriveEmbed69AesKey(html) {
+  try {
+    const chalMatch = html.match(/POW_CHALLENGE\s*=\s*['\"]([^'\"]+)['\"]/);
+    const diffMatch = html.match(/POW_DIFFICULTY\s*=\s*(\d+)/);
+    const saltMatch = html.match(/POW_SALT\s*=\s*['\"]([^'\"]+)['\"]/);
+    if (!chalMatch || !diffMatch || !saltMatch)
+      return null;
+    const challenge = chalMatch[1];
+    const difficulty = parseInt(diffMatch[1], 10);
+    const salt = saltMatch[1];
+    const prefix = "0".repeat(difficulty);
+    for (let nonce = 0; nonce <= 5e5; nonce++) {
+      const h = CryptoJS3.SHA256(challenge + String(nonce)).toString(CryptoJS3.enc.Hex);
+      if (h.startsWith(prefix)) {
+        console.log(`[Embed69] POW solved: nonce=${nonce}, difficulty=${difficulty}`);
+        return CryptoJS3.SHA256(challenge + String(nonce) + salt);
+      }
+    }
+  } catch (e) {
+    console.log(`[Embed69] POW/AES key derivation failed: ${e.message}`);
+  }
+  return null;
+}
+function decryptEmbed69Token(token, keyWA) {
+  try {
+    if (!token || !keyWA || token.includes("http"))
+      return token;
+    const raw = CryptoJS3.enc.Base64.parse(token);
+    if (!raw || raw.sigBytes <= 16)
+      return null;
+    const iv = CryptoJS3.lib.WordArray.create(raw.words.slice(0, 4), 16);
+    const ciphertext = CryptoJS3.lib.WordArray.create(raw.words.slice(4), raw.sigBytes - 16);
+    const decrypted = CryptoJS3.AES.decrypt(
+      { ciphertext },
+      keyWA,
+      { iv, mode: CryptoJS3.mode.CBC, padding: CryptoJS3.pad.Pkcs7 }
+    );
+    const out = decrypted.toString(CryptoJS3.enc.Utf8);
+    return out && /^https?:\/\//i.test(out) ? out : null;
+  } catch (e) {
+    return null;
+  }
+}
 function applyPipingLocal(result) {
   if (!result || !result.url)
     return result;
@@ -1403,6 +1447,7 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
       const match = html.match(/let\s+dataLink\s*=\s*((\[[\s\S]*?\])|(\{[\s\S]*?\}))\s*;/);
       if (!match)
         return [];
+      const aesKey = deriveEmbed69AesKey(html);
       let rawData = JSON.parse(match[1].replace(/\\\//g, "/"));
       let data = Array.isArray(rawData) ? rawData : Object.values(rawData);
       const batch = [];
@@ -1417,7 +1462,10 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
           item.sortedEmbeds.forEach((embed) => {
             if (embed.link) {
               let decodedLink = embed.link;
-              if (decodedLink.includes(".")) {
+              const decryptedLink = decryptEmbed69Token(decodedLink, aesKey);
+              if (decryptedLink) {
+                decodedLink = decryptedLink;
+              } else if (decodedLink.includes(".")) {
                 try {
                   const parts = decodedLink.split(".");
                   if (parts.length === 3) {
@@ -1429,6 +1477,9 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
                   }
                 } catch (err) {
                 }
+              }
+              if (!/^https?:\/\//i.test(decodedLink)) {
+                return;
               }
               const sLink = decodedLink.toLowerCase();
               const sName = (embed.servername || "").toLowerCase();
