@@ -461,21 +461,6 @@
       ]
     },
     {
-      "id": "veronline",
-      "name": "VerOnline",
-      "description": "Series en Latino, Español y VOSE desde VerOnline.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/veronline.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "gnula",
       "name": "Gnula",
       "description": "Películas, series y anime en Latino/Español desde Gnula.hd.",

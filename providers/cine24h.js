@@ -32,72 +32,99 @@ async function getStreams(id, type, season, episode) {
         const searchUrl = `${BASE_URL}?s=${encodeURIComponent(info.title).replace(/%20/g, "+")}`;
         const searchHtml = await fetch(searchUrl, { headers: HEADERS }).then(r => r.text());
         
-        const regex = /<article[^>]*>.*?<a href="([^"]+)".*?alt="([^"]+)"/gs;
+        const regex = /<article[^>]*>.*?<a href="([^"]+)"[^>]*>.*?alt="([^"]+)"/gs;
         let match;
         let matchedUrl = null;
         while ((match = regex.exec(searchHtml)) !== null) {
-            matchedUrl = match[1];
+            const href = match[1];
+            // For TV, prefer /series/ links over /peliculas/
+            if (type === "tv" && !href.includes("/series/")) continue;
+            matchedUrl = href;
             break;
+        }
+        // Fallback: if no TV match found, try any match
+        if (!matchedUrl && type === "tv") {
+            regex.lastIndex = 0;
+            while ((match = regex.exec(searchHtml)) !== null) {
+                matchedUrl = match[1];
+                break;
+            }
         }
 
         if (!matchedUrl) return [];
 
         let targetUrl = matchedUrl;
         if (type === "tv") {
-            const seriesHtml = await fetch(matchedUrl, { headers: HEADERS }).then(r => r.text());
-            const cleanHtml = seriesHtml.replace(/\n|\r|\t|\s{2,}/g, '');
-            
-            const seasonBlockMatch = cleanHtml.match(new RegExp(`data-season[^>]*>.*?Season\\s*0*${season}(.*?)<\/table>`));
-            if (!seasonBlockMatch) return [];
-
-            const seasonBlock = seasonBlockMatch[1];
-            const epRegex = new RegExp(`<span class="Num">\\s*${episode}\\s*<\\/span>.*?<a href="([^"]+)"`, 'i');
-            const epMatch = seasonBlock.match(epRegex);
-            if (!epMatch) return [];
-
-            targetUrl = epMatch[1];
+            // New theme (2025+): episodes use /episode/SLUG-SxE/ pattern
+            // Extract series slug from the matched URL
+            const slugMatch = matchedUrl.match(/\/series\/([^\/]+)\/?/);
+            const seriesSlug = slugMatch ? slugMatch[1] : "";
+            if (seriesSlug) {
+                targetUrl = `https://cine24h.online/episode/${seriesSlug}-${season}x${episode}/`;
+                console.log(`[Cine24h] TV episode URL: ${targetUrl}`);
+            } else {
+                // Fallback to old method: fetch series page and find SxE in links
+                const seriesHtml = await fetch(matchedUrl, { headers: HEADERS }).then(r => r.text());
+                const cleanSeries = seriesHtml.replace(/\n|\r|\t|\s{2,}/g, '');
+                const epRegex = new RegExp(`href="([^"]*episode[^"]*-${season}x${episode}[^"]*)"`, 'i');
+                const epMatch = cleanSeries.match(epRegex);
+                if (!epMatch) return [];
+                targetUrl = epMatch[1];
+                if (targetUrl.startsWith("/")) targetUrl = "https://cine24h.online" + targetUrl;
+            }
         }
 
         const episodeHtml = await fetch(targetUrl, { headers: HEADERS }).then(r => r.text());
         const streams = [];
 
         const cleanEpisodeHtml = episodeHtml.replace(/\n|\r|\t|\s{2,}/g, '');
-        const optionsMatch = cleanEpisodeHtml.match(/>Opciones<(.*?)>Enlaces</);
-        if (optionsMatch) {
-            const optionsBlock = optionsMatch[1];
-            const optRegex = /<li[^>]*>.*?<span>([^<]+)<\/span>.*?<span>([^<]+)<span>.*?<span>([^<]+)<\/span>.*?src="([^"]+)"/g;
-            let optMatch;
-            while ((optMatch = optRegex.exec(optionsBlock)) !== null) {
-                const serverName = optMatch[1].replace(/[^\w]/g, "").trim();
-                const rawLang = optMatch[2].trim();
-                const qlty = optMatch[3].trim();
-                let encodedUrl = optMatch[4];
+        // New theme (2025+): options use <li data-src="BASE64" data-option> with nested spans
+        const optLiRegex = /<li[^>]*data-src="([^"]+)"[^>]*data-option[^>]*>([\s\S]*?)<\/li>/gi;
+        let optLiMatch;
+        while ((optLiMatch = optLiRegex.exec(cleanEpisodeHtml)) !== null) {
+            const encodedUrl = optLiMatch[1];
+            const block = optLiMatch[2];
 
-                if (serverName.toLowerCase() === "fmd" || serverName.toLowerCase() === "msn" || serverName.toLowerCase() === "jet" || serverName.toLowerCase() === "gou") {
+            // Extract language from span text: LAT, ESP, SUB, VOSE
+            let lang = "Lat";
+            const langMatch = block.match(/<span[^>]*>\s*(LAT|ESP|SUB|VOSE|VO|CAST)\s*<\/span>/i);
+            if (langMatch) {
+                const raw = langMatch[1].toUpperCase();
+                if (raw === "ESP" || raw === "CAST") lang = "Esp";
+                else if (raw === "SUB" || raw === "VOSE" || raw === "VO") lang = "Vose";
+                else lang = "Lat";
+            }
+
+            // Extract quality from inner span (e.g., <span>720HD</span>)
+            let qlty = "HD";
+            const qualMatch = block.match(/<span[^>]*>\s*(\d{3,4}(?:HD|p|K)?)\s*<\/span>/i);
+            if (qualMatch) qlty = qualMatch[1];
+
+            // Server name from button number or first span
+            let serverName = "Server";
+            const numMatch = block.match(/<span[^>]*class="[^"]*nmopt[^"]*"[^>]*>\s*(\d+)\s*<\/span>/i);
+            if (numMatch) serverName = "Option " + numMatch[1];
+
+            // Skip known non-working servers (fmd, msn, jet, gou)
+            if (encodedUrl.length < 20) continue;
+
+            let decodedUrl = encodedUrl;
+            if (!encodedUrl.startsWith("http")) {
+                try {
+                    decodedUrl = Buffer.from(encodedUrl, "base64").toString("utf-8");
+                } catch (e) {
                     continue;
                 }
-
-                let decodedUrl = encodedUrl;
-                if (!encodedUrl.startsWith("http")) {
-                    try {
-                        decodedUrl = Buffer.from(encodedUrl, "base64").toString("utf-8");
-                    } catch (e) {
-                        continue;
-                    }
-                }
-
-                let lang = "Lat";
-                if (rawLang === "ESP") lang = "Esp";
-                if (rawLang === "SUB") lang = "Vose";
-
-                streams.push({
-                    name: "Cine24H",
-                    title: `${serverName} (${lang})`,
-                    url: decodedUrl,
-                    quality: qlty,
-                    headers: { Referer: targetUrl }
-                });
             }
+            if (!decodedUrl || !decodedUrl.startsWith("http")) continue;
+
+            streams.push({
+                name: "Cine24H",
+                title: `${serverName} (${lang})`,
+                url: decodedUrl,
+                quality: qlty,
+                headers: { Referer: targetUrl }
+            });
         }
 
         if (streams.length === 0) {
