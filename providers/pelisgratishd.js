@@ -145,6 +145,55 @@ async function getStreams(id, type, season, episode, title) {
 
         const streams = [];
 
+async function resolveEmbedUrl(url, ref) {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent": USER_AGENT,
+                "Referer": ref || url,
+                "Accept": "*/*"
+            },
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (!response.ok) return null;
+        const html = await response.text();
+        
+        let finalUrl = null;
+        const packedMatch = html.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+        if (packedMatch) {
+            try {
+                const match = packedMatch[0].match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
+                if (match) {
+                    let [full, p, a, c, k] = match;
+                    a = parseInt(a); c = parseInt(c); k = k.split('|');
+                    const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
+                    const decode = (l, s) => { let res = ''; while (l > 0) { res = chars[l % s] + res; l = Math.floor(l / s); } return res || '0'; };
+                    const unpacked = p.replace(/\b\w+\b/g, (l) => { const s = parseInt(l, 36); return s < k.length && k[s] ? k[s] : decode(s, a); });
+                    
+                    const hlsMatch = unpacked.match(/"hls[24]"\s*:\s*"([^"]+)"/) || unpacked.match(/file\s*:\s*["']([^"']+)["']/i);
+                    if (hlsMatch) finalUrl = hlsMatch[1];
+                }
+            } catch(e) {}
+        }
+        
+        if (!finalUrl) {
+            const rawMatch = html.match(/"hls[24]"\s*:\s*"([^"]+)"/) || html.match(/file\s*:\s*["']([^"']+)["']/i) || html.match(/["'](https?:\/\/[^"']+?\/stream\/[^"']+?\.m3u8[^"']*?)["']/i) || html.match(/source[^>]+src=["']([^"']+\.mp4[^"']*)["']/i);
+            if (rawMatch) finalUrl = rawMatch[1];
+        }
+
+        if (finalUrl) {
+            if (!finalUrl.startsWith("http")) finalUrl = new URL(url).origin + (finalUrl.startsWith("/") ? "" : "/") + finalUrl;
+            return finalUrl;
+        }
+    } catch(e) {
+        return null;
+    }
+    return null;
+}
+
         // Step 4: Direct REST API query to fetch direct links for each player option
         for (const opt of playerOptions) {
             try {
@@ -177,13 +226,17 @@ async function getStreams(id, type, season, episode, title) {
                         lang = "VOSE";
                     }
 
-                    streams.push({
-                        name: "PelisGratisHD",
-                        title: `${serverName.toUpperCase()} (${lang})`,
-                        url: embedUrl,
-                        quality: "HD",
-                        headers: { Referer: targetUrl }
-                    });
+                    const directMediaUrl = await resolveEmbedUrl(embedUrl, targetUrl);
+                    
+                    if (directMediaUrl) {
+                        streams.push({
+                            name: "PelisGratisHD",
+                            title: `${serverName.toUpperCase()} (${lang})`,
+                            url: directMediaUrl,
+                            quality: "HD",
+                            headers: { Referer: new URL(embedUrl).origin }
+                        });
+                    }
                 }
             } catch(e) {
                 console.warn(`[PelisGratisHD] Error calling player option API: ${e.message}`);

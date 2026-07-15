@@ -9,6 +9,27 @@ const HEADERS = {
     "Connection": "keep-alive"
 };
 
+function unpack(p, a, c, k, e, d) {
+    while (c--) {
+        if (k[c]) {
+            p = p.replace(new RegExp('\\b' + c.toString(a) + '\\b', 'g'), k[c]);
+        }
+    }
+    return p;
+}
+
+function decodePacker(packed) {
+    let args = packed.match(/eval\(function\(p,a,c,k,e,[rd]\).*?\}\((.*?)\)\)/);
+    if (!args) return "";
+    let strArgs = args[1];
+    try {
+        let parsed = eval('[' + strArgs + ']');
+        return unpack(parsed[0], parsed[1], parsed[2], parsed[3], parsed[4], parsed[5]);
+    } catch(e) {
+        return "";
+    }
+}
+
 async function getTMDBInfo(id, type) {
     try {
         const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=es-MX`;
@@ -144,7 +165,75 @@ async function getStreams(id, type, season, episode) {
             }
         }
 
-        return streams;
+        // Resolve iframes to direct streams
+        const resolvedStreams = [];
+        for (let s of streams) {
+            try {
+                let embRes = await fetch(s.url, { headers: HEADERS });
+                let embHtml = await embRes.text();
+                
+                let trueEmbedUrl = s.url;
+                
+                // If it's an intermediate page containing an iframe, extract it
+                const iframeMatch = embHtml.match(/<iframe[^>]*src="([^"]+)"/i);
+                if (iframeMatch) {
+                    trueEmbedUrl = iframeMatch[1];
+                    if (trueEmbedUrl.startsWith("//")) trueEmbedUrl = "https:" + trueEmbedUrl;
+                    
+                    // Fetch the true embed
+                    embRes = await fetch(trueEmbedUrl, { headers: HEADERS });
+                    embHtml = await embRes.text();
+                }
+                
+                // Try to find raw m3u8
+                let m3u8Match = embHtml.match(/(https:\/\/[^"']+\.m3u8[^"']*)/i);
+                if (m3u8Match && !m3u8Match[1].includes("youtube")) {
+                    s.url = m3u8Match[1];
+                    resolvedStreams.push(s);
+                    continue;
+                }
+                
+                // Try Dean Edwards unpacker for Filemoon/others
+                const packedMatch = embHtml.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+                if (packedMatch) {
+                    let unpacked = decodePacker(packedMatch[0]);
+                    let m3u8Unpacked = unpacked.match(/file:\s*["']([^"']+\.m3u8[^"']*)["']/i) || unpacked.match(/(https:\/\/[^"']+\.m3u8[^"']*)/i);
+                    let mp4Unpacked = unpacked.match(/file:\s*["']([^"']+\.mp4[^"']*)["']/i) || unpacked.match(/(https:\/\/[^"']+\.mp4[^"']*)/i);
+                    
+                    if (m3u8Unpacked) {
+                        s.url = m3u8Unpacked[1];
+                        resolvedStreams.push(s);
+                        continue;
+                    } else if (mp4Unpacked) {
+                        s.url = mp4Unpacked[1];
+                        resolvedStreams.push(s);
+                        continue;
+                    }
+                }
+                
+                // VOE specific (fallback)
+                if (trueEmbedUrl.includes('voe.sx') || trueEmbedUrl.includes('voe.network')) {
+                     const hlsVoe = embHtml.match(/'hls':\s*'([^']+)'/);
+                     if (hlsVoe) {
+                         s.url = hlsVoe[1];
+                         resolvedStreams.push(s);
+                         continue;
+                     }
+                }
+                
+                // Try to find raw mp4
+                let mp4Match = embHtml.match(/(https:\/\/[^"']+\.mp4[^"']*)/i);
+                if (mp4Match) {
+                    s.url = mp4Match[1];
+                    resolvedStreams.push(s);
+                    continue;
+                }
+            } catch(e) {
+                // ignore
+            }
+        }
+        
+        return resolvedStreams;
     } catch (e) {
         console.log(`[Cine24H] Error: ${e.message}`);
         return [];

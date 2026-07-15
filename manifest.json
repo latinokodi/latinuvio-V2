@@ -477,21 +477,6 @@
       ]
     },
     {
-      "id": "seriesgato",
-      "name": "SeriesGato",
-      "description": "Una de las fuentes más actualizadas para series con audio dual (Latino/Inglés) desde Gatonplayseries.",
-      "version": "1.1.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/seriesgato.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "doramasflix",
       "name": "DoramasFlix",
       "description": "Doramas y series asiáticas en Latino y Subtitulado.",

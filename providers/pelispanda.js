@@ -2807,6 +2807,7 @@ var require_engine = __commonJS({
             quality,
             verified: isVerified,
             isReal,
+            isDirect: isReal || (s.url && (s.url.includes('.m3u8') || s.url.includes('.mp4'))),
             provider: server,
             language: rawLang,
             headers: s.headers || {
