@@ -7,6 +7,9 @@ package-lock.json
 .agent/
 tests/
 
+# Git metadata (redundant but explicit)
+.git
+
 # Svelte / Vite / Tauri local source directories
 src/
 src-tauri/
