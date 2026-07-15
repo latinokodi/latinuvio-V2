@@ -9,6 +9,43 @@ const HEADERS = {
     "Connection": "keep-alive"
 };
 
+function unpack(p, a, c, k, e, d) {
+    while (c--)
+        if (k[c]) p = p.replace(new RegExp('\\b' + c.toString(a) + '\\b', 'g'), k[c]);
+    return p;
+}
+
+function decodePacked(text) {
+    const match = text.match(/eval\(function\(p,a,c,k,e,d\).*?return p}\('(.*?)',\s*(\d+),\s*(\d+),\s*'([^']+)'\.split\('\|'\).*?\)\)/);
+    if (match) {
+        let p = match[1];
+        let a = parseInt(match[2]);
+        let c = parseInt(match[3]);
+        let k = match[4].split('|');
+        return unpack(p, a, c, k, 0, {});
+    }
+    return null;
+}
+
+async function resolveEmbed(url) {
+    try {
+        const res = await fetch(url, { headers: Object.assign({}, HEADERS, { "Referer": BASE_URL }) });
+        const text = await res.text();
+        
+        let fileMatch = text.match(/file:\s*["']([^"']*\.m3u8[^"']*)["']/i) || text.match(/file:\s*["']([^"']*\.mp4[^"']*)["']/i);
+        if (fileMatch) return fileMatch[1];
+        
+        const unpacked = decodePacked(text);
+        if (unpacked) {
+            fileMatch = unpacked.match(/file:\s*["']([^"']*\.m3u8[^"']*)["']/i) || unpacked.match(/file:\s*["']([^"']*\.mp4[^"']*)["']/i);
+            if (fileMatch) return fileMatch[1];
+        }
+    } catch (e) {
+        // ignore
+    }
+    return null;
+}
+
 async function getTMDBInfo(id, type) {
     try {
         const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=es-MX`;
@@ -74,16 +111,40 @@ async function getStreams(id, type, season, episode) {
             const links = [...content.matchAll(/data-link="([^"]+)"/g)];
             for (const link of links) {
                 let streamUrl = link[1];
-                if (streamUrl.includes("verhdlink")) continue;
                 if (!streamUrl.startsWith("http")) streamUrl = "https:" + streamUrl;
+                
+                if (streamUrl.includes("verhdlink")) {
+                    try {
+                        const vHtml = await fetch(streamUrl, { headers: Object.assign({}, HEADERS, { "Referer": targetUrl }) }).then(r => r.text());
+                        const subLinks = [...vHtml.matchAll(/data-link="([^"]+)"/g)];
+                        for (const sub of subLinks) {
+                            let subUrl = sub[1];
+                            if (!subUrl.startsWith("http")) subUrl = "https:" + subUrl;
+                            const direct = await resolveEmbed(subUrl);
+                            if (direct) {
+                                streams.push({
+                                    name: "RePelisHD",
+                                    title: `Mirror (${lang})`,
+                                    url: direct,
+                                    quality: direct.includes(".m3u8") ? "1080p" : "720p",
+                                    headers: { Referer: subUrl }
+                                });
+                            }
+                        }
+                    } catch(e) {}
+                    continue;
+                }
 
-                streams.push({
-                    name: "RePelisHD",
-                    title: `Mirror (${lang})`,
-                    url: streamUrl,
-                    quality: "1080p",
-                    headers: { Referer: targetUrl }
-                });
+                const direct = await resolveEmbed(streamUrl);
+                if (direct) {
+                    streams.push({
+                        name: "RePelisHD",
+                        title: `Mirror (${lang})`,
+                        url: direct,
+                        quality: direct.includes(".m3u8") ? "1080p" : "720p",
+                        headers: { Referer: streamUrl }
+                    });
+                }
             }
         }
 
@@ -94,13 +155,38 @@ async function getStreams(id, type, season, episode) {
                 let embedUrl = iframeMatch[1];
                 if (embedUrl.includes("youtube")) continue;
                 if (embedUrl.startsWith("//")) embedUrl = "https:" + embedUrl;
-                streams.push({
-                    name: "RePelisHD",
-                    title: "Embed",
-                    url: embedUrl,
-                    quality: "720p",
-                    headers: { Referer: targetUrl }
-                });
+                
+                if (embedUrl.includes("verhdlink")) {
+                    try {
+                        const vHtml = await fetch(embedUrl, { headers: Object.assign({}, HEADERS, { "Referer": targetUrl }) }).then(r => r.text());
+                        const subLinks = [...vHtml.matchAll(/data-link="([^"]+)"/g)];
+                        for (const sub of subLinks) {
+                            let subUrl = sub[1];
+                            if (!subUrl.startsWith("http")) subUrl = "https:" + subUrl;
+                            const direct = await resolveEmbed(subUrl);
+                            if (direct) {
+                                streams.push({
+                                    name: "RePelisHD",
+                                    title: "Embed",
+                                    url: direct,
+                                    quality: direct.includes(".m3u8") ? "1080p" : "720p",
+                                    headers: { Referer: subUrl }
+                                });
+                            }
+                        }
+                    } catch(e) {}
+                } else {
+                    const direct = await resolveEmbed(embedUrl);
+                    if (direct) {
+                        streams.push({
+                            name: "RePelisHD",
+                            title: "Embed",
+                            url: direct,
+                            quality: direct.includes(".m3u8") ? "1080p" : "720p",
+                            headers: { Referer: embedUrl }
+                        });
+                    }
+                }
             }
         }
 

@@ -544,7 +544,7 @@ async function extractStreams(url) {
             langMap[lMatch[1]] = lMatch[2].split("-")[0]?.trim() || "Latino";
         }
         
-        const optRegex = /id="Opt(\d+)"[^>]*>[\s\S]*?<iframe[^>]*src="([^"]+)"/gi;
+        const optRegex = /id="Opt(\d+)"[^>]*>(?:(?!<\/div>)[\s\S])*?<iframe[^>]*src="([^"]+)"/gi;
         let optMatch;
         const trembedUrls = [];
         
@@ -556,7 +556,7 @@ async function extractStreams(url) {
             }
         }
         
-        const encodedRegex = /id="Opt(\d+)"[^>]*>[\s\S]*?&lt;iframe[^&]*src=&quot;([^&]+)&quot;/gi;
+        const encodedRegex = /id="Opt(\d+)"[^>]*>(?:(?!<\/div>)[\s\S])*?&lt;iframe[^>]*src=&quot;(.*?)&quot;/gi;
         while ((optMatch = encodedRegex.exec(html)) !== null) {
             let src = optMatch[2];
             src = src.replace(/&amp;/g, '&').replace(/&#038;/g, '&');
@@ -628,40 +628,76 @@ async function getStreams(id, type, season, episode) {
 
     const target = results[0];
     console.log(`[SeriesGato] Selected: ${target.title} -> ${target.url}`);
-    
+
+    // Extract show slug from the series URL
     let slug = target.url.replace(/https?:\/\/[^/]+\//, "").replace(/\/$/, "");
-    slug = slug.replace(/-[a-z]$/, "");
-    
+    // Strip common prefixes like "ver-" from the slug
+    slug = slug.replace(/^ver-/, "");
+
     const S = String(season);
-    const E = String(episode);
-    
+    const Ep = String(episode);
+    const Ep2 = Ep.padStart(2, "0");
+
+    // Try multiple episode URL patterns
+    // seriesgato series pages are like /ver-breaking-bad/ so rawSlug = 'ver-breaking-bad'
+    // and episodes are like /ver-breaking-bad-5x1/
+    const rawSlug = target.url.replace(/https?:\/\/[^/]+\//, "").replace(/\/$/, "");
     const epUrls = [
-        `${BASE_URL}/ver/capitulo/${slug}-${S}x${E}/`,
-        `${BASE_URL}/ver/capitulo/${slug}-${S}x${E.padStart(2, '0')}/`,
+        `${BASE_URL}/${rawSlug}-${S}x${Ep}/`,
+        `${BASE_URL}/${rawSlug}-${S}x${Ep2}/`,
+        `${BASE_URL}/ver/capitulo/${slug}-${S}x${Ep}/`,
+        `${BASE_URL}/ver/capitulo/${slug}-${S}x${Ep2}/`,
+        `${BASE_URL}/ver-${slug}-${S}x${Ep}/`,
+        `${BASE_URL}/ver-${slug}-${S}x${Ep2}/`,
+        `${BASE_URL}/${slug}-${S}x${Ep}/`,
+        `${BASE_URL}/${slug}-temporada-${S}-capitulo-${Ep}/`,
     ];
     
     for (const epUrl of epUrls) {
         try {
+            console.log(`[SeriesGato] Trying: ${epUrl}`);
             const resp = await fetch(epUrl, { headers: HEADERS });
-            if (resp.ok) {
-                console.log(`[SeriesGato] Found episode at: ${epUrl}`);
-                return await extractStreams(epUrl);
+            const finalUrl = resp.url || epUrl;
+            if (resp.ok && !finalUrl.includes('/?s=') && finalUrl !== BASE_URL + '/' && !finalUrl.endsWith(BASE_URL)) {
+                console.log(`[SeriesGato] Found episode at: ${finalUrl}`);
+                const streams = await extractStreams(finalUrl);
+                if (streams.length > 0) return streams;
             }
         } catch (e) {}
     }
     
-    console.log(`[SeriesGato] URL guessing failed, searching series page HTML...`);
+    // Fallback: Scan all episode links from the series page
+    console.log(`[SeriesGato] URL guessing failed, scanning series page HTML...`);
     try {
         const seriesHtml = await fetch(target.url, { headers: HEADERS }).then(r => r.text());
-        const epPattern = new RegExp(`href="([^"]*ver/capitulo/[^"]*-${S}x${E}[^"]*)"`, 'i');
-        const m = seriesHtml.match(epPattern);
-        if (m) {
-            console.log(`[SeriesGato] Found episode via HTML: ${m[1]}`);
-            return await extractStreams(m[1]);
+
+        // Collect all episode hrefs from the HTML using safe string-based regex
+        const allEpLinks = [];
+        const hrefRe = new RegExp('href="([^"]+)"', 'gi');
+        let hm;
+        while ((hm = hrefRe.exec(seriesHtml)) !== null) {
+            const href = hm[1];
+            if ((href.includes('ver/capitulo') || href.includes('ver-')) && !allEpLinks.includes(href)) {
+                allEpLinks.push(href);
+            }
         }
-    } catch (e) {}
-    
-    console.log(`[SeriesGato] Episode not found`);
+        console.log(`[SeriesGato] Found ${allEpLinks.length} episode links on series page`);
+
+        // Match SxE pattern in the collected links
+        const epPattern = new RegExp(`-${S}x(0*)${Ep}(\/|$)`, 'i');
+        for (const link of allEpLinks) {
+            if (epPattern.test(link)) {
+                const fullUrl = link.startsWith('http') ? link : BASE_URL + link;
+                console.log(`[SeriesGato] Found episode via HTML scan: ${fullUrl}`);
+                const streams = await extractStreams(fullUrl);
+                if (streams.length > 0) return streams;
+            }
+        }
+    } catch (e) {
+        console.log(`[SeriesGato] HTML scan error: ${e.message}`);
+    }
+
+    console.log(`[SeriesGato] Episode S${season}E${episode} not found`);
     return [];
 }
 

@@ -2592,13 +2592,9 @@ var require_resolvers = __commonJS({
           console.log(`[Resolvers] Known server failed resolution (Down): ${url}`);
           return null;
         }
-        const finalHeaders = getDirectCdnHeaders(url);
-        return applyPiping({
-          url,
-          quality: "SD",
-          verified: false,
-          headers: finalHeaders
-        });
+        
+        console.log(`[Resolvers] Unresolved embed URL ignored (No Iframe allowed): ${url}`);
+        return null;
       });
     }
     module2.exports = { resolveEmbed };
@@ -2994,11 +2990,21 @@ var require_extractor = __commonJS({
           let movieUrl = null;
           let bestMatch = null;
           let highestScore = -1;
+          const queryNorm = normalizeTitle(query);
+          const expectedSlug = queryNorm.replace(/\s+/g, '-');
           for (const hits of allSearchHits) {
             for (const hit of hits) {
-              if (!bestMatch) {
+              let score = 0;
+              const titleNorm = normalizeTitle(hit.title);
+              if (titleNorm === queryNorm) score += 100;
+              if (hit.href.endsWith(`/${expectedSlug}`)) score += 90;
+              else if (hit.href.includes(expectedSlug)) score += 50;
+              if (titleMatch(query, hit.title)) score += 30;
+              
+              if (score > highestScore) {
+                highestScore = score;
                 bestMatch = hit;
-                console.log(`[PelisPlusHD] Selected Match: ${hit.title} (${hit.href})`);
+                console.log(`[PelisPlusHD] New Best Match: ${hit.title} (${hit.href}) - Score: ${score}`);
               }
             }
           }

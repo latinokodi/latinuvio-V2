@@ -42,6 +42,10 @@ const EMBED_SAFE_PATTERNS = [
     "odnoklassniki.ru",
     "uqload.is",
     "uqload.co",
+    "vgfplay.com",
+    "vidguard.to",
+    "vcdn.io",
+    "voe.sx"
 ];
 
 async function fetchText(url, headers = HTML_HEADERS_RESOLVER) {
@@ -244,8 +248,8 @@ function generateQueries(info) {
 
 async function searchOnSite(query) {
     try {
-        // TioAnime search URL with director filters
-        const url = `${BASE_URL}/directorio?q=${encodeURIComponent(query)}&year=1950%2C2026&status=2&sort=recent`;
+        // TioAnime search URL
+        const url = `${BASE_URL}/directorio?q=${encodeURIComponent(query)}`;
         const res = await fetch(url, { headers: HEADERS });
         if (!res.ok) return [];
         const html = await res.text();
@@ -258,7 +262,7 @@ async function searchOnSite(query) {
             if (!href.startsWith("/anime/")) return;
             const slug = href.replace("/anime/", "");
             const title = $(el).find("h3").text().trim();
-            const type = $(el).find("span.anime-type-peli").text().trim();
+            const type = $(el).find("span[class^='anime-type-']").text().trim();
             
             if (slug) {
                 results.push({ slug, title, type });
@@ -362,7 +366,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     const $ = cheerio.load(episodeHtml);
     const scripts = $("script");
     const serversFind = scripts.map((_, el) => $(el).html()).get().find(script => script?.includes("var videos ="));
-    const serversObjMatch = serversFind?.match(/var videos = (\[\[.*]])/);
+    const serversObjMatch = serversFind?.match(/var videos\s*=\s*(\[\[.*]])/);
     if (!serversObjMatch) {
         console.log("[TioAnime] No videos script block found.");
         return [];
@@ -408,19 +412,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                 headers: { "Referer": BASE_URL + "/", "User-Agent": UA }
             });
         } else {
-            const isEmbedSafe = EMBED_SAFE_PATTERNS.some(h => embedUrl.includes(h)) && 
-                (embedUrl.includes("/e/") || embedUrl.includes("/embed") || embedUrl.includes("/embed-") || embedUrl.includes("ok.ru") || embedUrl.includes("odnoklassniki"));
-            if (isEmbedSafe) {
-                streams.push({
-                    name: "TioAnime",
-                    title: `${serverName} (Embed)`,
-                    url: embedUrl,
-                    quality: "720p",
-                    headers: { "Referer": BASE_URL + "/", "User-Agent": UA }
-                });
-            } else {
-                console.log(`[TioAnime] Dropping non-resolvable embed: ${embedUrl}`);
-            }
+            console.log(`[TioAnime] Dropping non-resolvable embed: ${embedUrl}`);
         }
     }
 

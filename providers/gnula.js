@@ -53,19 +53,13 @@ async function searchGnula(query) {
         const url = `${BASE_URL}/?s=${encodeURIComponent(query)}`;
         const html = await fetch(url, { headers: HEADERS }).then(r => r.text());
         const matches = [];
-        const regex = /<article class="bs".*?<a href="([^"]+)".*?title="([^"]+)".*?<div class="typez([^"]*)">([\s\S]*?)<\/div>/gs;
+        const regex = /<a\s+class="gnrd-card"\s+href="([^"]+)"\s+title="([^"]+)">/gi;
         let match;
         while ((match = regex.exec(html)) !== null) {
-            const classAttr = match[3] || "";
-            const content = match[4] || "";
-            const isMovie = classAttr.toLowerCase().includes("pelicula") || 
-                            content.toLowerCase().includes("pelicula") || 
-                            classAttr.toLowerCase().includes("película") || 
-                            content.toLowerCase().includes("película");
             matches.push({
                 url: match[1],
                 title: match[2],
-                isMovie: isMovie
+                isMovie: null
             });
         }
         return matches;
@@ -133,14 +127,15 @@ const MIRRORS = {
                  "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix"],
     VIDHIDE:    ["vidhide", "minochinos", "vadisov", "vaiditv", "amusemre",
                  "callistanise", "vhaudm", "mdfury", "dintezuvio", "acek-cdn",
-                 "vedonm", "vidhidepro", "vidhidevip", "masukestin", "filelions"],
+                 "vedonm", "vidhidepro", "vidhidevip", "masukestin", "filelions", "vidsonic"],
     FILEMOON:   ["filemoon", "moonalu", "moonembed", "bysedikamoum", "r66nv9ed",
-                 "398fitus", "bysejikuar", "fmoon"],
+                 "398fitus", "bysejikuar", "fmoon", "bysevepoin", "gdtvid"],
     VOE:        ["voe.sx", "voe-sx", "voex.sx", "marissashare", "cloudwindow",
                  "marissasharecareer"],
     DOODSTREAM:  ["doodstream", "dood.", "d000d", "d0000d", "doodapi", "d0o0d",
                   "do0od", "dooodster", "do7go", "ds2play", "ds2video"],
     STREAMTAPE:  ["streamtape"],
+    OKRU:        ["ok.ru/videoembed"]
 };
 
 function isMirror(url, group) {
@@ -340,11 +335,12 @@ function aesGcmDecrypt(playback) {
 }
 
 async function resolveFilemoon(embedUrl) {
+    // First try: API-based approach (works for main filemoon.sx domain)
     try {
         const urlObj = new URL(embedUrl);
         const hostname = urlObj.hostname;
         const videoId = urlObj.pathname.split("/").filter(Boolean).pop();
-        if (!videoId) return null;
+        if (!videoId) throw new Error("no videoId");
         const detailsRes = await fetch(`https://${hostname}/api/videos/${videoId}/embed/details`, {
             headers: { "X-Requested-With": "XMLHttpRequest", "Referer": embedUrl, "User-Agent": USER_AGENT }
         });
@@ -383,7 +379,7 @@ async function resolveFilemoon(embedUrl) {
             }
         });
         const attestData = await attestRes.json();
-        if (!attestData.token) return null;
+        if (!attestData.token) throw new Error("No attest token");
         const playbackPayload = {
             fingerprint: {
                 token: attestData.token,
@@ -420,7 +416,55 @@ async function resolveFilemoon(embedUrl) {
         const m3 = playText.match(/https?:\\?\/\\?\/[^"\\]+\.m3u8[^"\\]*/i);
         if (m3) return { url: m3[0].replace(/\\/g, ""), quality: "HD", headers: { Referer: embedUrl } };
     } catch (e) {
+        // Fall through to page-scrape approach below
     }
+    // Second try: Direct page fetch + eval unpack (works for Filemoon mirrors)
+    try {
+        const res = await fetch(embedUrl, {
+            headers: { "User-Agent": USER_AGENT, "Referer": BASE_URL + "/" }
+        });
+        if (!res.ok) return null;
+        const html = await res.text();
+        // Try eval unpack first
+        const evalStr = html.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[\s\S]*?\}\s*\('[\s\S]+?',\s*\d+,\s*\d+,\s*'[\s\S]+?'\.split\('\|'\)/);
+        if (evalStr) {
+            const unpacked = evalUnpack(evalStr[0]);
+            if (unpacked) {
+                const m = unpacked.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+                if (m) return { url: m[0], quality: "1080p", headers: { "User-Agent": USER_AGENT, "Referer": embedUrl } };
+            }
+        }
+        // Try raw m3u8
+        const m3 = html.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+        if (m3) return { url: m3[0], quality: "720p", headers: { "User-Agent": USER_AGENT, "Referer": embedUrl } };
+        // Try file: pattern
+        const fileMatch = html.match(/file\s*:\s*["']([^"']+)["']/i);
+        if (fileMatch) return { url: fileMatch[1], quality: "720p", headers: { "User-Agent": USER_AGENT, "Referer": embedUrl } };
+    } catch (e) {
+    }
+    return null;
+}
+
+async function resolveOkru(embedUrl) {
+    try {
+        const res = await fetch(embedUrl, { headers: { "User-Agent": USER_AGENT } });
+        const html = await res.text();
+        const dataMatch = html.match(/data-options="([^"]+)"/);
+        if (dataMatch) {
+            const dataStr = dataMatch[1].replace(/&quot;/g, '"');
+            const data = JSON.parse(dataStr);
+            if (data.flashvars && data.flashvars.metadata) {
+                const metadata = JSON.parse(data.flashvars.metadata);
+                if (metadata.hlsManifestUrl) {
+                    return { url: metadata.hlsManifestUrl, quality: "1080p", headers: {} };
+                }
+                if (metadata.videos && metadata.videos.length > 0) {
+                    const video = metadata.videos.reduce((prev, current) => (prev.size > current.size) ? prev : current);
+                    return { url: video.url, quality: video.name, headers: {} };
+                }
+            }
+        }
+    } catch(e) {}
     return null;
 }
 
@@ -552,6 +596,11 @@ async function resolveVoe(embedUrl) {
  * Resolve an embed URL to a stream
  */
 async function resolveEmbed(url) {
+    // Skip hash-fragment URLs that require browser JS to resolve
+    if (url.includes("p2pplay.pro") || url.includes("#")) {
+        console.log(`[Gnula] Skipping unresolvable hash/p2pplay URL: ${url.substring(0, 60)}`);
+        return null;
+    }
     if (isMirror(url, "STREAMWISH")) {
         const res = await resolveStreamwish(url);
         if (res) return [{ name: "Gnula", title: `StreamWish`, url: res.url, quality: res.quality, headers: res.headers }];
@@ -575,6 +624,10 @@ async function resolveEmbed(url) {
     if (isMirror(url, "STREAMTAPE")) {
         const res = await resolveStreamtape(url);
         if (res) return [{ name: "Gnula", title: `StreamTape`, url: res.url, quality: res.quality, headers: res.headers }];
+    }
+    if (isMirror(url, "OKRU")) {
+        const res = await resolveOkru(url);
+        if (res) return [{ name: "Gnula", title: `Okru`, url: res.url, quality: res.quality, headers: res.headers }];
     }
     const u = url.toLowerCase();
     if (u.includes("waaw.to") || u.includes("netu.tv")) {
@@ -646,10 +699,8 @@ async function getStreams(id, type, season, episode) {
         results = await searchGnula(info.originalTitle);
     }
 
+    console.log(`[Gnula] Search results for ${info.title}:`, results.length);
     let target = results.find(r => {
-        const isTypeMatch = (type === "movie" && r.isMovie) || (type === "tv" && !r.isMovie);
-        if (!isTypeMatch) return false;
-        
         const cleanSearch = cleanTitle(r.title).toLowerCase();
         const cleanT = cleanTitle(info.title).toLowerCase();
         const cleanO = cleanTitle(info.originalTitle).toLowerCase();
@@ -658,13 +709,15 @@ async function getStreams(id, type, season, episode) {
                cleanSearch.includes(cleanO) || cleanO.includes(cleanSearch);
     });
 
-    if (!target) {
-        target = results.find(r => 
-            (type === "movie" && r.isMovie) || (type === "tv" && !r.isMovie)
-        );
+    if (!target && results.length > 0) {
+        target = results[0];
     }
 
-    if (!target) return [];
+    if (!target) {
+        console.log(`[Gnula] Target not found for ${info.title}`);
+        return [];
+    }
+    console.log(`[Gnula] Selected target:`, target.title, target.url);
 
     let url = target.url;
     if (type === "tv") {
@@ -673,23 +726,38 @@ async function getStreams(id, type, season, episode) {
         const cheerio = require("cheerio");
         const $ = cheerio.load(episodesHtml);
         let epUrl = null;
-        $(".eplister a, .epcheck a, .gnpv-eplist a").each((i, el) => {
-            const numText = $(el).find(".epl-num").text().trim();
-            const match = numText.match(/^0*(\d+)x0*(\d+)$/i);
-            if (match) {
-                const s = parseInt(match[1]);
-                const e = parseInt(match[2]);
-                if (s === season && e === episode) {
-                    epUrl = $(el).attr("href");
-                    return false;
-                }
+        $(".gnrd-epc").each((i, el) => {
+            const s = parseInt($(el).attr("data-s"));
+            const e = parseInt($(el).attr("data-e"));
+            if (s === season && e === episode) {
+                epUrl = $(el).attr("href");
+                return false;
             }
         });
-        if (!epUrl) return [];
+        if (!epUrl) {
+            $(".eplister a, .epcheck a, .gnpv-eplist a").each((i, el) => {
+                const numText = $(el).find(".epl-num, .gnrd-epc-n").text().trim();
+                const match = numText.match(/^0*(\d+)x0*(\d+)$/i);
+                if (match) {
+                    const s = parseInt(match[1]);
+                    const e = parseInt(match[2]);
+                    if (s === season && e === episode) {
+                        epUrl = $(el).attr("href");
+                        return false;
+                    }
+                }
+            });
+        }
+        if (!epUrl) {
+            console.log(`[Gnula] TV episode ${season}x${episode} not found on page ${url}`);
+            return [];
+        }
         url = epUrl;
+        console.log(`[Gnula] Found TV episode URL:`, url);
     }
 
     const embeds = await extractEmbeds(url);
+    console.log(`[Gnula] Found embeds:`, embeds.length, embeds);
     const streams = [];
     for (const embed of embeds) {
         const resolved = await resolveEmbed(embed);
