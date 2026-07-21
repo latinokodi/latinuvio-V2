@@ -1,40 +1,24 @@
 /**
- * PeliculasFlix provider — ported from plugin.video.balandro (channels/peliculasflix.py)
- * Source site: https://peliculasflix.co/
- * API base: https://fluxcedene.net/api/gql
+ * EliFilms provider — ported from plugin.video.balandro (channels/elifilms.py)
+ * Source site: https://allcalidad.re/
+ * API base: https://allcalidad.re/api/rest/
  *
- * Supports: movies only (GraphQL-based API)
+ * Supports: movies, TV shows (TMDB-based lookup via title search)
  */
 
 const CryptoJS = require("crypto-js");
 
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
-const HOST = "https://peliculasflix.co/";
-const API_URL = "https://fluxcedene.net/api/gql";
-const ACCESS_PLATFORM = "lDakkGUZx7_nX25Nv1CJVbz_ZAjMKMTcwNTQyMzU4Nw==";
+const HOST = "https://allcalidad.re";
+const API = `${HOST}/api/rest/`;
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const HEADERS = {
     "User-Agent": USER_AGENT,
-    "Referer": HOST,
-    "Content-Type": "application/json",
-    "x-access-platform": ACCESS_PLATFORM,
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "es-MX,es-US;q=0.9,es;q=0.8,en-US;q=0.7,en;q=0.6",
-    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "cross-site",
-    "Pragma": "no-cache",
-    "Cache-Control": "no-cache"
+    "Accept": "application/json, text/plain, */*",
+    "Connection": "keep-alive",
+    "Referer": HOST + "/"
 };
-
-const DEBUG = false;
-function log(...args) {
-    if (DEBUG) console.log(...args);
-}
 
 // ---------------------------------------------------------------------------
 // Title utilities
@@ -46,8 +30,7 @@ function cleanTitle(title) {
         .toLowerCase()
         .replace(/\(.*?\)/g, "")
         .replace(/\[.*?\]/g, "")
-        .replace(/:\s*.*?$/g, "")
-        .replace(/[-_]/g, " ")
+        .replace(/[-_:]/g, " ")
         .replace(/[^a-zA-Z0-9\sáéíóúÁÉÍÓÚñÑ]/g, "")
         .replace(/\s+/g, " ")
         .trim();
@@ -55,10 +38,14 @@ function cleanTitle(title) {
 
 function getSearchQuery(title) {
     if (!title) return "";
+    // Strip subtitle after colon, parenthetical clauses, special chars
     let q = title.split(":")[0];
     q = q.replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "");
     q = q.replace(/[^a-zA-Z0-9\s\-áéíóúÁÉÍÓÚñÑ]/g, "");
-    return q.replace(/\s+/g, " ").trim();
+    q = q.replace(/\s+/g, " ").trim();
+    // EliFilms search breaks with long queries — keep only the first meaningful words
+    const words = q.split(" ").filter(w => w.length > 1);
+    return words.slice(0, 2).join(" ");
 }
 
 // ---------------------------------------------------------------------------
@@ -79,89 +66,76 @@ async function getTMDBInfo(id, type) {
             if (original) titles.add(original);
             if (!year) year = (res.release_date || res.first_air_date || "").substring(0, 4);
         } catch (e) {
-            log(`[PeliculasFlix] TMDB Error (${lang}): ${e.message}`);
+            console.log(`[EliFilms] TMDB Error (${lang}): ${e.message}`);
         }
     }
     return titles.size > 0 ? { titles: Array.from(titles), year } : null;
 }
 
 // ---------------------------------------------------------------------------
-// PeliculasFlix GraphQL API calls
+// EliFilms / AllCalidad REST API
 // ---------------------------------------------------------------------------
 
-async function searchPeliculasFlix(query) {
-    const q = {
-        operationName: "searchAll",
-        variables: { input: query },
-        query: `query searchAll($input: String!) {
-  searchFilm(input: $input, limit: 10) {
-    _id
-    slug
-    title
-    name
-    overview
-    languages
-    name_es
-    poster_path
-    poster
-    __typename
-  }
-}`
-    };
-
+async function searchEliFilms(query, type) {
     try {
-        log(`[PeliculasFlix] Searching API for: "${query}"`);
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: HEADERS,
-            body: JSON.stringify(q)
-        });
+        const postType = type === "tv" ? "tvshows" : "movies";
+        const url = `${API}search?post_type=${postType}&query=${encodeURIComponent(query)}&posts_per_page=20`;
+        console.log(`[EliFilms] Searching: ${url}`);
+        const res = await fetch(url, { headers: HEADERS });
         if (!res.ok) return [];
         const json = await res.json();
-        return json?.data?.searchFilm || [];
+        // API shape: { error, message, data: { posts: [...], pagination: {...} } }
+        const posts = json?.data?.posts;
+        if (Array.isArray(posts)) {
+            // Guard: the site returns latest posts when search finds nothing —
+            // reject the batch if none of the titles contain at least one query word.
+            const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+            const hasRelevant = posts.some(p =>
+                queryWords.some(w => p.title.toLowerCase().includes(w))
+            );
+            if (!hasRelevant) {
+                console.log(`[EliFilms] Search for "${query}" returned irrelevant results — skipping.`);
+                return [];
+            }
+            return posts.map(p => ({
+                id: p._id,
+                title: p.title,
+                originalTitle: p.original_title || "",
+                type: p.type || postType   // field is 'movies' or 'tvshows'
+            }));
+        }
     } catch (e) {
-        log(`[PeliculasFlix] Search Error: ${e.message}`);
+        console.log(`[EliFilms] Search Error: ${e.message}`);
+    }
+    return [];
+}
+
+async function getEpisodes(postId) {
+    try {
+        const url = `${API}episodes?post_id=${postId}`;
+        console.log(`[EliFilms] Fetching episodes: ${url}`);
+        const res = await fetch(url, { headers: HEADERS });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data?.data || [];
+    } catch (e) {
+        console.log(`[EliFilms] Episodes Error: ${e.message}`);
         return [];
     }
 }
 
-async function getDetail(slug) {
-    const q = {
-        operationName: "detailFilm",
-        variables: { slug: slug },
-        query: `query detailFilm($slug: String!) {
-  detailFilm(filter: {slug: $slug}) {
-    name
-    title
-    name_es
-    overview
-    languages
-    links_online {
-      _id
-      server
-      lang
-      link
-      page
-      __typename
-    }
-    __typename
-  }
-}`
-    };
-
+async function getPlayerEmbeds(postId) {
     try {
-        log(`[PeliculasFlix] Fetching movie detail: "${slug}"`);
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: HEADERS,
-            body: JSON.stringify(q)
-        });
-        if (!res.ok) return null;
-        const json = await res.json();
-        return json?.data?.detailFilm || null;
+        const url = `${API}player?post_id=${postId}&_any=1`;
+        console.log(`[EliFilms] Fetching player: ${url}`);
+        const res = await fetch(url, { headers: HEADERS });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        // embeds are under data.embeds — array of { url, server, lang }
+        return data?.data?.embeds || [];
     } catch (e) {
-        log(`[PeliculasFlix] Detail Error: ${e.message}`);
-        return null;
+        console.log(`[EliFilms] Player Error: ${e.message}`);
+        return [];
     }
 }
 
@@ -172,8 +146,7 @@ async function getDetail(slug) {
 const MIRRORS = {
     STREAMWISH: ["hlswish", "streamwish", "hglink", "hglamioz", "audinifer",
                  "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix",
-                 "sfastwish", "jodwish", "swhoi", "swdyu", "playerwish",
-                 "sbfast", "watchsb"],
+                 "sfastwish", "jodwish", "swhoi", "swdyu", "playerwish"],
     VIDHIDE:    ["vidhide", "minochinos", "vadisov", "vaiditv", "amusemre",
                  "callistanise", "vhaudm", "mdfury", "dintezuvio", "acek-cdn",
                  "vedonm", "vidhidepro", "vidhidevip", "masukestin", "filelions"],
@@ -182,7 +155,7 @@ const MIRRORS = {
     VOE:        ["voe.sx", "voe-sx", "voex.sx", "marissashare", "cloudwindow",
                  "marissasharecareer"],
     DOODSTREAM: ["doodstream", "dood.", "d000d", "d0000d", "doodapi", "d0o0d",
-                 "do0od", "dooodster", "do7go", "ds2play", "ds2video", "dood.yt"],
+                 "do0od", "dooodster", "do7go", "ds2play", "ds2video"],
     STREAMTAPE: ["streamtape"],
 };
 
@@ -218,7 +191,7 @@ function evalUnpack(script) {
     } catch { return null; }
 }
 
-// Pure-JS base64 decode
+// Pure-JS base64 decode (no Buffer, works in Node without btoa issues)
 function localAtob(input) {
     if (!input) return "";
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -550,7 +523,7 @@ async function resolveStreamtape(embedUrl) {
 
 async function resolveVimeos(embedUrl) {
     try {
-        log("[Vimeos] Resolviendo: " + embedUrl);
+        console.log("[Vimeos] Resolviendo: " + embedUrl);
         const html = await fetch(embedUrl, {
             headers: {
                 "User-Agent": USER_AGENT,
@@ -579,9 +552,9 @@ async function resolveVimeos(embedUrl) {
                 }
             } catch (e) {}
         }
-        const packMatch = html.match(/eval\(function\(p,a,c,k,e,[dr]\)\{[\s\S]+?\}\('([\s\S]+?)',(\d+),(\d+),\''([\s\S]+?)'\.split\('\|'\)/);
+        const packMatch = html.match(/eval\(function\(p,a,c,k,e,[dr]\)\{[\s\S]+?\}\('([\s\S]+?)',(\d+),(\d+),'([\s\S]+?)'\.split\('\|'\)/);
         if (packMatch) {
-            log("[Vimeos] Usando Unpacker...");
+            console.log("[Vimeos] Usando Unpacker...");
             const payload = packMatch[1];
             const radix = parseInt(packMatch[2]);
             const symtab = packMatch[4].split("|");
@@ -592,14 +565,14 @@ async function resolveVimeos(embedUrl) {
             if (m3u8Match) return { url: m3u8Match[1], server: "Vimeos", quality: "1080p", headers: { "User-Agent": USER_AGENT, "Referer": "https://vimeos.net/" } };
         }
     } catch (err) {
-        log("[Vimeos] Error: " + err.message);
+        console.log("[Vimeos] Error: " + err.message);
     }
     return null;
 }
 
 async function resolveGoodstream(embedUrl) {
     try {
-        log(`[GoodStream] Resolviendo: ${embedUrl}`);
+        console.log(`[GoodStream] Resolviendo: ${embedUrl}`);
         const response = await fetch(embedUrl, {
             headers: { "User-Agent": USER_AGENT, "Referer": "https://goodstream.one/", "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8", "Accept-Language": "es-MX,es;q=0.9" }
         });
@@ -617,59 +590,11 @@ async function resolveGoodstream(embedUrl) {
     }
 }
 
-async function resolveOkru(embedUrl) {
-    try {
-        const res = await fetch(embedUrl, { headers: { "User-Agent": USER_AGENT } });
-        if (!res.ok) return null;
-        const html = await res.text();
-        const m = html.match(/data-options="([^"]+)"/i);
-        if (!m) return null;
-        const decoded = m[1].replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-        const data = JSON.parse(decoded);
-        const metadataStr = data?.flashvars?.metadata;
-        if (!metadataStr) return null;
-        const meta = JSON.parse(metadataStr);
-        
-        // Try HLS manifest url first
-        if (meta.hlsManifestUrl) {
-            let hls = meta.hlsManifestUrl;
-            if (hls.startsWith("//")) hls = "https:" + hls;
-            return {
-                url: hls,
-                server: "OkRu",
-                quality: "1080p",
-                headers: { "User-Agent": USER_AGENT, "Referer": "https://ok.ru/" }
-            };
-        }
-        
-        // Otherwise, grab highest quality from videos list
-        const videos = meta.videos || [];
-        if (videos.length > 0) {
-            const qualityOrder = ["full", "hd", "sd", "low", "lowest", "mobile"];
-            for (const q of qualityOrder) {
-                const match = videos.find(v => v.name === q);
-                if (match && match.url) {
-                    let streamUrl = match.url;
-                    if (streamUrl.startsWith("//")) streamUrl = "https:" + streamUrl;
-                    return {
-                        url: streamUrl,
-                        server: "OkRu",
-                        quality: q === "full" ? "1080p" : q === "hd" ? "720p" : "480p",
-                        headers: { "User-Agent": USER_AGENT, "Referer": "https://ok.ru/" }
-                    };
-                }
-            }
-        }
-    } catch (e) {}
-    return null;
-}
-
 // ---------------------------------------------------------------------------
 // Embed router
 // ---------------------------------------------------------------------------
 
 async function resolveEmbed(url) {
-    if (url.includes("ok.ru") || url.includes("okru.link") || url.includes("odnoklassniki")) return resolveOkru(url);
     if (isMirror(url, "STREAMWISH")) return resolveStreamwish(url);
     if (isMirror(url, "VIDHIDE"))    return resolveVidhide(url);
     if (isMirror(url, "FILEMOON"))   return resolveFilemoon(url);
@@ -679,8 +604,6 @@ async function resolveEmbed(url) {
     const u = url.toLowerCase();
     if (u.includes("vimeos.net") || u.includes("vimeos.cc") || u.includes("vimeos.zip")) return resolveVimeos(url);
     if (u.includes("goodstream.one") || u.includes("goodstream.co")) return resolveGoodstream(url);
-    if (u.includes("uqload")) return resolveUqload(url);
-    if (u.includes("streamlare")) return resolveStreamlare(url);
     return null;
 }
 
@@ -689,96 +612,117 @@ async function resolveEmbed(url) {
 // ---------------------------------------------------------------------------
 
 async function getStreams(id, type, season, episode) {
-    if (type !== "movie") {
-        log("[PeliculasFlix] Series/TV not supported by this provider.");
-        return [];
-    }
-
-    log(`[PeliculasFlix] Resolving stream for ID ${id}, Type ${type}`);
+    console.log(`[EliFilms] Resolving stream for ID ${id}, Type ${type}, Season: ${season}, Episode: ${episode}`);
 
     const info = await getTMDBInfo(id, type);
     if (!info) {
-        log("[PeliculasFlix] Failed to retrieve TMDB info.");
+        console.log("[EliFilms] Failed to retrieve TMDB info.");
         return [];
     }
 
-    // Search PeliculasFlix GQL API for a matching movie post
+    // Search EliFilms API for a matching post
     let matchedPost = null;
     for (const title of info.titles) {
         const query = getSearchQuery(title);
         if (!query) continue;
         const cleaned = cleanTitle(title);
-        const posts = await searchPeliculasFlix(query);
+        const posts = await searchEliFilms(query, type);
         if (posts && posts.length > 0) {
-            // Find movie with closest title match
+            // Find a post matching the title and year
             matchedPost = posts.find(p => {
                 const pt = cleanTitle(p.title);
-                const pe = cleanTitle(p.name_es || "");
-                const pn = cleanTitle(p.name || "");
-                return pt.includes(cleaned) || cleaned.includes(pt) ||
-                       (pe && (pe.includes(cleaned) || cleaned.includes(pe))) ||
-                       (pn && (pn.includes(cleaned) || cleaned.includes(pn)));
+                const po = cleanTitle(p.originalTitle || "");
+                const titleMatch = pt.includes(cleaned) || cleaned.includes(pt) ||
+                                   (po && (po.includes(cleaned) || cleaned.includes(po)));
+                
+                let yearMatch = true;
+                if (info.year) {
+                    const postYearMatch = p.title.match(/\((\d{4})\)/);
+                    if (postYearMatch) {
+                        const postYear = parseInt(postYearMatch[1], 10);
+                        const tmdbYear = parseInt(info.year, 10);
+                        yearMatch = Math.abs(postYear - tmdbYear) <= 1;
+                    }
+                }
+                return titleMatch && yearMatch;
             });
             if (matchedPost) break;
+            
+            // Fallback to first result only if we have a loose title match
+            const fallbackPost = posts[0];
+            const pt = cleanTitle(fallbackPost.title);
+            const po = cleanTitle(fallbackPost.originalTitle || "");
+            const fallbackTitleMatch = pt.includes(cleaned) || cleaned.includes(pt) ||
+                                       (po && (po.includes(cleaned) || cleaned.includes(po)));
+            if (fallbackTitleMatch) {
+                matchedPost = fallbackPost;
+                break;
+            }
         }
     }
 
     if (!matchedPost) {
-        log("[PeliculasFlix] No matching post found.");
+        console.log("[EliFilms] No matching post found.");
         return [];
     }
 
-    log(`[PeliculasFlix] Matched movie: "${matchedPost.title}" (Slug: ${matchedPost.slug})`);
+    console.log(`[EliFilms] Matched: "${matchedPost.title}" (ID: ${matchedPost.id})`);
 
-    const detail = await getDetail(matchedPost.slug);
-    if (!detail || !detail.links_online || detail.links_online.length === 0) {
-        log("[PeliculasFlix] No streaming links found in movie detail.");
+    let targetPostId = matchedPost.id;
+
+    // For TV shows: resolve specific episode post ID
+    if (type === "tv") {
+        const episodes = await getEpisodes(matchedPost.id);
+        if (!episodes || episodes.length === 0) {
+            console.log("[EliFilms] No episodes returned.");
+            return [];
+        }
+        const epMatch = episodes.find(ep =>
+            parseInt(ep.season_number) === parseInt(season) &&
+            parseInt(ep.episode_number) === parseInt(episode)
+        );
+        if (!epMatch) {
+            console.log(`[EliFilms] Episode S${season}E${episode} not found.`);
+            return [];
+        }
+        targetPostId = epMatch._id || epMatch.id;
+        console.log(`[EliFilms] Matched Episode: S${season}E${episode} (Post ID: ${targetPostId})`);
+    }
+
+    // Fetch player embeds
+    const embeds = await getPlayerEmbeds(targetPostId);
+    if (!embeds || embeds.length === 0) {
+        console.log("[EliFilms] No embeds found in player response.");
         return [];
     }
 
     const streams = [];
-    for (const video of detail.links_online) {
-        let url = video.link || "";
-        if (url.includes("<iframe") || url.includes("<IFRAME")) {
-            const m = url.match(/src=["'](https?:\/\/[^"']+)["']/i);
-            if (m) url = m[1];
-        }
-        url = url.replace(/\\\//g, "/");
+    for (const embed of embeds) {
+        let url = (embed.url || "").replace(/\\\//g, "/");
+
+        // Skip unsupported or torrent links (matches balandro's filter list)
         if (!url || !url.startsWith("http")) continue;
-
         const uLow = url.toLowerCase();
-        log(`[PeliculasFlix] Found link: ${url} (Server code: ${video.server}, Lang: ${video.lang})`);
-        
-        // Ignore dead or unsupported platforms
         if (uLow.includes("sbcom") || uLow.includes("lvturbo") || uLow.includes("vanfem") ||
-            uLow.includes("fembed") || uLow.includes("1fichier") || uLow.includes("fireload") ||
-            uLow.includes("pelisplus.") || uLow.includes("fplayer.")) {
-            log(`[PeliculasFlix]   -> Skipping unsupported/dead host`);
-            continue;
-        }
+            uLow.includes("fembed") || uLow.includes("1fichier") || uLow.includes("fireload")) continue;
+        if (url.startsWith("magnet:") || uLow.includes(".torrent")) continue;
 
-        try {
-            log(`[PeliculasFlix]   -> Attempting resolution...`);
-            const resolved = await resolveEmbed(url);
-            if (resolved && resolved.url) {
-                let lang = "Lat";
-                const code = String(video.lang);
-                if (code === "37") lang = "Esp";
-                else if (code === "192") lang = "Sub";
+        const resolved = await resolveEmbed(url);
+        if (resolved && resolved.url) {
+            // Determine language label from embed metadata
+            const embedLang = (embed.lang || embed.language || "").toLowerCase();
+            let lang = "Lat";
+            if (embedLang.includes("castellano") || embedLang.includes("español")) lang = "Esp";
+            else if (embedLang.includes("subtitulado") || embedLang.includes("vose")) lang = "Sub";
+            else if (embedLang.includes("ingles") || embedLang.includes("inglés") || embedLang.includes("vos")) lang = "Ing";
 
-                log(`[PeliculasFlix]   -> SUCCESS! Resolved to ${resolved.server} stream: ${resolved.url.substring(0, 80)}...`);
-                streams.push({
-                    provider: "PeliculasFlix",
-                    title: `${resolved.quality || "1080p"} · ${lang} · ${resolved.server}`,
-                    url: resolved.url,
-                    quality: resolved.quality || "1080p",
-                    headers: resolved.headers || { Referer: url }
-                });
-            } else {
-                log(`[PeliculasFlix]   -> FAILED to resolve (returned null or empty)`);
-            }
-        } catch (re) {
-            log(`[PeliculasFlix]   -> ERROR during resolution: ${re.message}`);
+            streams.push({
+                name: "EliFilms",
+                title: `${resolved.quality || "1080p"} · ${lang} · ${resolved.server}`,
+                url: resolved.url,
+                quality: resolved.quality || "1080p",
+                headers: resolved.headers || { Referer: url }
+            });
         }
     }
 
@@ -786,47 +730,3 @@ async function getStreams(id, type, season, episode) {
 }
 
 module.exports = { getStreams };
-
-async function resolveUqload(embedUrl) {
-    try {
-        const html = await fetch(embedUrl, {
-            headers: { "User-Agent": USER_AGENT, "Referer": HOST }
-        }).then(r => r.text());
-        const symMatch = html.match(/,\d+,'([\s\S]+?)'\.split\('\|'\)/);
-        if (symMatch) {
-            const symbols = symMatch[1].split('|');
-            let slug = null;
-            for (const sym of symbols) {
-                if (sym.endsWith('_n') && sym.length > 5) { slug = sym.replace('_n', ''); break; }
-            }
-            if (!slug) {
-                for (const sym of symbols) {
-                    if (sym.endsWith('_sli') && sym.length > 6) { slug = sym.replace('_sli', ''); break; }
-                }
-            }
-            if (slug) {
-                const m3u8Url = `https://strm1.uqload.is/hls/${slug}/master.m3u8`;
-                return { url: m3u8Url, server: "Uqload", quality: "720p", headers: { "Referer": embedUrl, "User-Agent": USER_AGENT } };
-            }
-        }
-    } catch (e) {}
-    return null;
-}
-
-async function resolveStreamlare(embedUrl) {
-    try {
-        const id = embedUrl.split("/").pop();
-        const apiUrl = `https://streamlare.com/api/video/stream/get?video=${id}`;
-        const resp = await fetch(apiUrl, {
-            headers: { "User-Agent": USER_AGENT, "Referer": embedUrl, "Accept": "application/json" }
-        });
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        const sources = data?.result?.sources || data?.sources || [];
-        const best = sources.sort((a, b) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0))[0];
-        if (best?.url) {
-            return { url: best.url, server: "Streamlare", quality: best.quality ? best.quality + "p" : "1080p", headers: { "Referer": embedUrl, "User-Agent": USER_AGENT } };
-        }
-    } catch (e) {}
-    return null;
-}

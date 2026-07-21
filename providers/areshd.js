@@ -675,7 +675,7 @@ async function extractStreams(pageUrl) {
                         const resolved = await resolveEmbed(embedUrl);
                         if (resolved?.url) {
                             return {
-                                name: "AresHD",
+                                provider: "AresHD",
                                 title: `${serverName} (${lang})`,
                                 url: resolved.url,
                                 quality: resolved.quality || "HD",

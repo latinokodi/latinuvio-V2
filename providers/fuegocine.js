@@ -2906,7 +2906,7 @@ function getStreams(tmdbId, mediaType, season, episode, title) {
     const visualLogs = [];
     const addVisualLog = (msg) => {
       visualLogs.push({
-        name: "\u{1F525} FUEGO LOG",
+        provider: "\u{1F525} FUEGO LOG",
         title: msg,
         url: "https://log.info/" + Math.random(),
         headers: {}

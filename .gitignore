@@ -1,33 +1,19 @@
-# Node.js local files
+# Dependencies
 node_modules/
-package.json
-package-lock.json
 
-# Agent/test workspaces
+# Agent workspace
 .agent/
-tests/
 
-# Git metadata (redundant but explicit)
-.git
+# Test suite (heavy — run locally, not in repo)
+test/
 
-# Svelte / Vite / Tauri local source directories
-src/
-src-tauri/
-index.html
-vite.config.js
-svelte.config.js
-tsconfig.json
-jsconfig.json
-tsconfig.node.json
+# Reference apps (not part of provider pack)
+NuvioMobile/
+NuvioTV/
 
-# Local testing and synchronization scripts
-sync_config.json
-test_providers.cjs
-sync_providers.cjs
-launch_app.bat
-
-# OS-specific files
+# OS files
 .DS_Store
+Thumbs.db
 *.log
 .idea/
 .vscode/

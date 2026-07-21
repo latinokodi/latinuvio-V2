@@ -7,36 +7,24 @@ const HTML_HEADERS_RESOLVER = {
     "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
 };
 
-// Hosts that are genuinely dead or always fail. StreamWish/MixDrop/Filemoon
-// are now emitted as isEmbed:true for NuvioTV's CloudStream extractors.
 const SKIP_HOSTS = [
-    "embedsb.com",     // StreamSB — dead host
-    "streamsb.net",
-    "sbplay.org",
-    "hqq.tv",          // Netu — JS-gated
-    "my.mail.ru",      // Mail.ru — login required
-    "animeav1.uns.bio",// UPNShare — unresolvable
-    "terabox.com",     // Requires auth
-    "1fichier.com",    // Requires account
-    "luluvdo.com",     // Files expire quickly
-    "lulustream.com",
+    "embedsb.com", "streamsb.net", "sbplay.org",
+    "hqq.tv", "my.mail.ru",
+    "animeav1.uns.bio",  // UPNShare — unresolvable
+    "terabox.com", "1fichier.com",
+    "luluvdo.com", "lulustream.com",
 ];
 
-// Embed hosts NuvioTV's CloudStream extractors can handle natively.
 const EMBED_SAFE_PATTERNS = [
     "mp4upload.com", "streamtape.com", "yourupload.com",
     "ok.ru", "odnoklassniki.ru", "uqload.is", "uqload.co",
-    // StreamWish mirrors
     "streamwish", "strwish", "embedwish", "awish", "wishfast",
     "sfastwish", "hanerix", "hglink", "dhcplay",
-    // Filemoon clones
     "filemoon", "bysesukior", "moonembed", "fmoon",
-    // VidHide aliases
-    "vidhide", "filelions", "vgfplay",
-    // MixDrop
-    "mixdrop", "mixdroop",
-    // VOE
+    "vidhide", "filelions",
+    "mixdrop",
     "voe.sx", "voe",
+    "zilla-networks",  // HLS player
 ];
 
 async function fetchText(url, headers = HTML_HEADERS_RESOLVER) {
@@ -149,6 +137,20 @@ async function resolveUrl(serverName, embedUrl) {
                 }
                 if (resolved && !resolved.includes('streamtape')) resolved = null;
             }
+        } else if (name.includes("filemoon")) {
+            // Filemoon clones are React SPAs — skip at host level, but keep branch for name matching
+            resolved = null;
+        } else if (name.includes("streamwish") || name === "sw") {
+            const html = await fetchText(embedUrl);
+            if (html === "DEAD") return "DEAD";
+            if (html) {
+                const m = html.match(/(https?:\/\/[^\s"'<>]+\.m3u8[^\s"'<>]*)/i);
+                if (m && !m[1].startsWith("blob:")) { resolved = m[1]; }
+                else {
+                    resolved = findFirstUrl(html, [/(https?:[^\s"']+\.m3u8[^\s"']*)/i, /file\s*:\s*["'](https?:[^\s"']+)["']/i, /"file"\s*:\s*"([^"]+)"/i]);
+                    if (!resolved || resolved.startsWith("blob:") || !isLikelyVideoUrl(resolved)) resolved = null;
+                }
+            }
         } else if (name.includes("pdrain") || name.includes("pixeldrain")) {
             const mm = /(.+?:\/\/.+?)\/.+?\/(.+?)(?:\?embed)?$/.exec(embedUrl);
             if (mm) resolved = `${mm[1]}/api/file/${mm[2]}`;
@@ -161,7 +163,7 @@ async function resolveUrl(serverName, embedUrl) {
 }
 
 const TMDB_KEY = "439c478a771f35c05022f9feabcca01c";
-const BASE_URL = "https://tioanime.com";
+const BASE_URL = "https://animeav1.com";
 
 const HEADERS = {
     "User-Agent": UA,
@@ -196,21 +198,21 @@ async function getTmdbTitles(tmdbId, type) {
             year = dateStr.split("-")[0];
         }
     } catch (e) {
-        console.error("[TioAnime] TMDB es-ES error:", e.message);
+        console.error("[AnimeAV1] TMDB es-ES error:", e.message);
     }
     
     try {
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_KEY}&language=es-MX`).then(r => r.json());
         titleEsMX = type === "movie" ? res.title : res.name;
     } catch (e) {
-        console.error("[TioAnime] TMDB es-MX error:", e.message);
+        console.error("[AnimeAV1] TMDB es-MX error:", e.message);
     }
     
     try {
         const res = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_KEY}&language=en-US`).then(r => r.json());
         titleEn = type === "movie" ? res.title : res.name;
     } catch (e) {
-        console.error("[TioAnime] TMDB en-US error:", e.message);
+        console.error("[AnimeAV1] TMDB en-US error:", e.message);
     }
     
     return { titleEsES, titleEsMX, titleOriginal, titleEn, year };
@@ -239,21 +241,20 @@ function generateQueries(info) {
 
 async function searchOnSite(query) {
     try {
-        // TioAnime search URL with director filters
-        const url = `${BASE_URL}/directorio?q=${encodeURIComponent(query)}&year=1950%2C2026&status=2&sort=recent`;
+        const url = `${BASE_URL}/catalogo?search=${encodeURIComponent(query)}`;
         const res = await fetch(url, { headers: HEADERS });
         if (!res.ok) return [];
         const html = await res.text();
         const $ = cheerio.load(html);
         const results = [];
         
-        $("main ul li").each((i, el) => {
+        $("main section div article").each((i, el) => {
             const a = $(el).find("a");
             const href = a.attr("href") || "";
-            if (!href.startsWith("/anime/")) return;
-            const slug = href.replace("/anime/", "");
-            const title = $(el).find("h3").text().trim();
-            const type = $(el).find("span.anime-type-peli").text().trim();
+            if (!href.startsWith("/media/")) return;
+            const slug = href.replace("/media/", "");
+            const title = $(el).find("header h3").text().trim();
+            const type = $(el).find("div > figure + div > div").text().trim();
             
             if (slug) {
                 results.push({ slug, title, type });
@@ -261,17 +262,73 @@ async function searchOnSite(query) {
         });
         return results;
     } catch (e) {
-        console.error(`[TioAnime] Search site error for "${query}":`, e.message);
+        console.error(`[AnimeAV1] Search site error for "${query}":`, e.message);
         return [];
     }
 }
 
+/**
+ * Parse AnimeAV1 server data from SvelteKit devalue format.
+ * The site migrated to SvelteKit — data is in /media/{slug}/{ep}/__data.json
+ * Format: flattened array where data[0] is a schema mapping field→index.
+ */
+function parseDevalueData(dataArray) {
+    if (!Array.isArray(dataArray) || dataArray.length < 2) return [];
+    
+    const schema = dataArray[0];  // {media: 1, embeds: 56, episode: 53, ...}
+    const servers = [];
+    
+    // Helper: resolve a devalue reference (walk numeric indices)
+    const resolve = (idx) => {
+        if (typeof idx !== 'number' || idx >= dataArray.length) return null;
+        return dataArray[idx];
+    };
+    
+    // Extract servers from embeds/dowbloads > SUB/DUB arrays
+    const extractLang = (langKey) => {
+        const langIdx = schema[langKey];  // e.g. embeds=56, downloads=70
+        if (typeof langIdx !== 'number') return;
+        
+        const langObj = resolve(langIdx);  // {SUB: 57} or {SUB: 57, DUB: ...}
+        if (!langObj || typeof langObj !== 'object') return;
+        
+        for (const [lang, arrIdx] of Object.entries(langObj)) {
+            if (typeof arrIdx !== 'number') continue;
+            const arr = resolve(arrIdx);
+            if (!Array.isArray(arr)) continue;
+            
+            const isDub = lang.toUpperCase() === 'DUB';
+            for (const serverIdx of arr) {
+                if (typeof serverIdx !== 'number') continue;
+                const serverObj = resolve(serverIdx);
+                if (!serverObj || typeof serverObj !== 'object') continue;
+                
+                const serverIdx2 = serverObj.server;
+                const urlIdx = serverObj.url;
+                if (typeof serverIdx2 !== 'number' || typeof urlIdx !== 'number') continue;
+                
+                const serverName = String(resolve(serverIdx2) || '');
+                const url = String(resolve(urlIdx) || '');
+                
+                if (url && url.startsWith('http')) {
+                    servers.push({ title: serverName, url, dub: isDub });
+                }
+            }
+        }
+    };
+    
+    extractLang('embeds');
+    extractLang('downloads');
+    
+    return servers;
+}
+
 async function getStreams(tmdbId, mediaType, season, episode) {
-    console.log(`[TioAnime] Resolving TMDB ID: ${tmdbId}, Season: ${season}, Episode: ${episode}`);
+    console.log(`[AnimeAV1] Resolving TMDB ID: ${tmdbId}, Season: ${season}, Episode: ${episode}`);
     
     const info = await getTmdbTitles(tmdbId, mediaType);
     if (!info.titleEsES && !info.titleEsMX && !info.titleOriginal && !info.titleEn) {
-        console.log("[TioAnime] Failed to fetch titles from TMDB.");
+        console.log("[AnimeAV1] Failed to fetch titles from TMDB.");
         return [];
     }
 
@@ -280,7 +337,7 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     let bestScore = -1;
 
     for (const q of uniqueQueries) {
-        console.log(`[TioAnime] Searching with query: "${q}"`);
+        console.log(`[AnimeAV1] Searching with query: "${q}"`);
         const results = await searchOnSite(q);
         
         for (const res of results) {
@@ -321,83 +378,61 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     }
 
     if (!matchedAnime) {
-        console.log("[TioAnime] No matching anime found on site.");
+        console.log("[AnimeAV1] No matching anime found on site.");
         return [];
     }
 
-    console.log(`[TioAnime] Matched Anime: "${matchedAnime.title}" (Score: ${bestScore}) -> ${matchedAnime.slug}`);
+    console.log(`[AnimeAV1] Matched Anime: "${matchedAnime.title}" (Score: ${bestScore}) -> ${matchedAnime.slug}`);
 
     const epNum = mediaType === "movie" ? 1 : episode;
-    const urlsToTry = [
-        `${BASE_URL}/ver/${matchedAnime.slug}-${epNum}`,
-        `${BASE_URL}/ver/${matchedAnime.slug}`
-    ];
-
-    let episodeHtml = null;
-    let successfulUrl = null;
-
-    for (const url of urlsToTry) {
-        try {
-            const res = await fetch(url, { headers: HEADERS });
-            if (res.ok) {
-                episodeHtml = await res.text();
-                successfulUrl = url;
-                break;
-            }
-        } catch (e) {
-            console.error(`[TioAnime] Error fetching ${url}:`, e.message);
-        }
-    }
-
-    if (!episodeHtml) {
-        console.log(`[TioAnime] Episode ${epNum} page not found.`);
-        return [];
-    }
-
-    const $ = cheerio.load(episodeHtml);
-    const scripts = $("script");
-    const serversFind = scripts.map((_, el) => $(el).html()).get().find(script => script?.includes("var videos ="));
-    const serversObjMatch = serversFind?.match(/var videos = (\[\[.*]])/);
-    if (!serversObjMatch) {
-        console.log("[TioAnime] No videos script block found.");
-        return [];
-    }
-
-    let serversArray;
+    const epPath = `${matchedAnime.slug}/${epNum}`;
+    const dataUrl = `${BASE_URL}/media/${epPath}/__data.json`;
+    
+    console.log(`[AnimeAV1] Fetching SvelteKit data: ${dataUrl}`);
+    let servers = [];
     try {
-        serversArray = JSON.parse(serversObjMatch[1]);
-    } catch (err) {
-        console.error("[TioAnime] Failed parsing videos JSON:", err.message);
-        return [];
+        const res = await fetch(dataUrl, { headers: { ...HEADERS, "Accept": "application/json" } });
+        if (res.ok) {
+            const json = await res.json();
+            // SvelteKit __data.json: { type: "data", nodes: [null, {...}, {data: [...]}] }
+            const dataNode = json?.nodes?.[2] || json?.nodes?.find(n => n?.data?.[0]?.embeds || n?.data?.[0]?.downloads);
+            if (dataNode?.data) {
+                servers = parseDevalueData(dataNode.data);
+            }
+        }
+    } catch (e) {
+        console.error(`[AnimeAV1] Error fetching data:`, e.message);
     }
+
+    console.log(`[AnimeAV1] Extracted ${servers.length} server elements from API.`);
 
     const streams = [];
-    for (const s of serversArray) {
-        const serverName = s[0] || "Mirror";
-        const embedUrl = s[1];
+    for (const s of servers) {
+        const serverName = s.title || "Mirror";
+        const embedUrl = s.url;
         if (!embedUrl) continue;
 
         if (embedUrl.includes("mega.nz") || embedUrl.includes("mega.co")) continue;
         try {
             const embedHost = new URL(embedUrl).hostname;
             if (SKIP_HOSTS.some(h => embedHost.includes(h))) {
-                console.log(`[TioAnime] Skipping unresolvable host: ${embedHost}`);
+                console.log(`[AnimeAV1] Skipping unresolvable host: ${embedHost}`);
                 continue;
             }
         } catch (_) {}
 
-        console.log(`[TioAnime] Resolving server ${serverName}: ${embedUrl}`);
+        console.log(`[AnimeAV1] Resolving server ${serverName}: ${embedUrl}`);
         const resolved = await resolveUrl(serverName, embedUrl);
 
         if (resolved === "DEAD") {
-            console.log(`[TioAnime] Stream is dead/deleted: ${embedUrl}`);
+            console.log(`[AnimeAV1] Stream is dead/deleted: ${embedUrl}`);
             continue;
         }
 
         if (resolved) {
             streams.push({
-                provider: "TioAnime",
-                title: `${serverName} \xB7 Direct`,
+                provider: "AnimeAV1",
+                title: `${serverName} \xB7 Direct${s.dub ? " \xB7 DUB" : ""}`,
                 url: resolved,
                 quality: "720p",
                 headers: { "Referer": BASE_URL + "/", "User-Agent": UA }
@@ -406,20 +441,20 @@ async function getStreams(tmdbId, mediaType, season, episode) {
             const isEmbedSafe = EMBED_SAFE_PATTERNS.some(h => embedUrl.includes(h));
             if (isEmbedSafe) {
                 streams.push({
-                    provider: "TioAnime",
-                    title: `${serverName} (Embed)`,
+                    provider: "AnimeAV1",
+                    title: `${serverName} (Embed)${s.dub ? " \xB7 DUB" : ""}`,
                     url: embedUrl,
                     quality: "720p",
                     isEmbed: true,
                     headers: { "Referer": BASE_URL + "/", "User-Agent": UA }
                 });
             } else {
-                console.log(`[TioAnime] Dropping non-resolvable embed: ${embedUrl}`);
+                console.log(`[AnimeAV1] Dropping non-resolvable embed: ${embedUrl}`);
             }
         }
     }
 
-    console.log(`[TioAnime] Resolved ${streams.length} streams.`);
+    console.log(`[AnimeAV1] Resolved ${streams.length} streams.`);
     return streams;
 }
 

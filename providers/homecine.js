@@ -1,5 +1,5 @@
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
-const BASE_URL = "https://www3.seriesmetro.net";
+const BASE_URL = "https://www3.homecine.to";
 
 const HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -47,23 +47,23 @@ async function search(query) {
         const html = await fetch(url, { headers: HEADERS }).then(r => r.text());
         const matches = [];
         
-        const articleRe = /<article[\s\S]*?<\/article>/gi;
+        const divRe = /<div data-movie-id="([\s\S]*?)<\/div><\/div>/gi;
         let match;
-        while ((match = articleRe.exec(html)) !== null) {
-            const article = match[0];
-            const linkMatch = /href="([^"]+)"\s*class="lnk-blk"/i.exec(article);
-            const titleMatch = /<h2\s*class="entry-title">([\s\S]*?)<\/h2>/i.exec(article);
+        while ((match = divRe.exec(html)) !== null) {
+            const block = match[1];
+            const linkMatch = /<a href="([^"]+)"/i.exec(block);
+            const titleMatch = /alt="([^"]+)"/i.exec(block);
             
             if (linkMatch && titleMatch) {
                 matches.push({
                     url: linkMatch[1],
-                    title: titleMatch[1].replace(/<[^>]+>/g, '').trim()
+                    title: titleMatch[1].replace(/&#8211;/g, '').replace(/&#8217;/g, "'").trim()
                 });
             }
         }
         return matches;
     } catch (e) {
-        console.log(`[SeriesMetro] Search Error: ${e.message}`);
+        console.log(`[HomeCine] Search Error: ${e.message}`);
         return [];
     }
 }
@@ -114,82 +114,93 @@ async function extractStreams(pageUrl) {
         const html = await fetch(pageUrl, { headers: HEADERS }).then(r => r.text());
         const streams = [];
         
-        const tabsRe = /<a[^>]*href="#(options-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        // <a href="#tab1">HD - Latino</a>
+        const tabsRe = /href="#tab([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
         const tabs = [];
         let tMatch;
         while ((tMatch = tabsRe.exec(html)) !== null) {
-            const id = tMatch[1];
+            const id = `tab${tMatch[1]}`;
             const labelHtml = tMatch[2];
             const label = labelHtml.replace(/<[^>]+>/g, '').trim();
             tabs.push({ id, label });
         }
         
         for (const tab of tabs) {
-            const blockRe = new RegExp(`<div id="${tab.id}"[\\s\\S]*?<iframe[^>]+(?:data-src|src)="([^"]+)"`, 'i');
+            // Because tabs and iframes might not be tightly coupled in the same div structure in homecine,
+            // the python code actually loops tabs and then just loops ALL iframes in the page? No, it looks like it gets multiple matches.
+            // Let's just extract all iframes. Actually, if homecine embeds fastream, let's just grab the iframes in the specific tab.
+            const blockRe = new RegExp(`<div id="${tab.id}"[\\s\\S]*?<iframe[^>]+src="([^"]+)"`, 'i');
             const bMatch = blockRe.exec(html);
             if (bMatch) {
-                const proxyUrl = bMatch[1].replace(/&#038;/g, '&');
+                const embedUrl = bMatch[1];
                 let lang = 'Lat';
-                let serverName = 'Fastream';
                 
-                const parts = tab.label.split('-');
-                if (parts.length > 1) {
-                    serverName = parts[0].trim() || 'Fastream';
-                    lang = parts[1].trim();
-                } else {
-                    serverName = tab.label;
-                }
+                const l = tab.label.toLowerCase();
+                if (l.includes('latino')) lang = 'Lat';
+                else if (l.includes('castellano') || l.includes('español')) lang = 'Esp';
+                else if (l.includes('sub')) lang = 'Vose';
                 
-                if (lang === 'Latino' || lang === 'Español Latino') lang = 'Lat';
-                if (lang === 'Castellano' || lang === 'Español') lang = 'Esp';
-                if (lang === 'VOSE' || lang === 'Sub') lang = 'Vose';
-                
-                // Fetch proxy URL to get real embed
-                try {
-                    const pRes = await fetch(proxyUrl, { headers: { ...HEADERS, 'Referer': pageUrl } });
-                    const pHtml = await pRes.text();
-                    const realMatch = /<iframe[^>]+src="([^"]+)"/i.exec(pHtml);
-                    if (realMatch) {
-                        let realUrl = realMatch[1];
-                        if (realUrl.includes('cinemaupload.com')) {
-                            realUrl = realUrl.replace('/cinemaupload.com/', '/embed.cload.video/');
-                        }
-                        
-                        if (realUrl.includes('fastream.to')) {
-                            const direct = await resolveFastream(realUrl);
-                            if (direct) {
-                                streams.push({
-                                    name: "SeriesMetro",
-                                    title: `${serverName} (${lang})`,
-                                    url: direct,
-                                    quality: 'HD'
-                                });
-                                continue;
-                            }
-                        }
-                        
+                if (embedUrl.includes('fastream.to')) {
+                    const direct = await resolveFastream(embedUrl);
+                    if (direct) {
                         streams.push({
-                            name: "SeriesMetro",
-                            title: `${serverName} (${lang})`,
-                            url: realUrl,
-                            isEmbed: true
+                            name: "HomeCine",
+                            title: `Fastream (${lang})`,
+                            url: direct,
+                            quality: 'HD'
                         });
+                        continue;
                     }
-                } catch(e) {
-                    console.log(`[SeriesMetro] Proxy fetch error: ${e.message}`);
                 }
+                
+                streams.push({
+                    name: "HomeCine",
+                    title: `Fastream (${lang})`,
+                    url: embedUrl,
+                    isEmbed: true
+                });
+            }
+        }
+        
+        // Fallback: if no tabs were parsed, just grab all iframes
+        if (streams.length === 0) {
+            const iframeRe = /<iframe[^>]+src="([^"]+)"/gi;
+            let iframeMatch;
+            while ((iframeMatch = iframeRe.exec(html)) !== null) {
+                const embedUrl = iframeMatch[1];
+                if (embedUrl.includes('youtube')) continue;
+                
+                if (embedUrl.includes('fastream.to')) {
+                    const direct = await resolveFastream(embedUrl);
+                    if (direct) {
+                        streams.push({
+                            name: "HomeCine",
+                            title: "Fastream (HD)",
+                            url: direct,
+                            quality: 'HD'
+                        });
+                        continue;
+                    }
+                }
+                
+                streams.push({
+                    name: "HomeCine",
+                    title: "Fastream (HD)",
+                    url: embedUrl,
+                    isEmbed: true
+                });
             }
         }
         
         return streams;
     } catch (e) {
-        console.log(`[SeriesMetro] Extract Error: ${e.message}`);
+        console.log(`[HomeCine] Extract Error: ${e.message}`);
         return [];
     }
 }
 
 async function getStreams(id, type, season, episode) {
-    console.log(`[SeriesMetro] Resolving: ${type} ${id}`);
+    console.log(`[HomeCine] Resolving: ${type} ${id}`);
     const info = await getTMDBInfo(id, type);
     if (!info) return [];
 
@@ -198,11 +209,10 @@ async function getStreams(id, type, season, episode) {
         const results = await search(title);
         if (results && results.length > 0) {
             matchedPost = results.find(r => {
-                const isTv = r.url.includes('/serie/');
-                const isMovie = r.url.includes('/pelicula/');
+                const isTv = r.url.includes('/series/');
                 if (type === 'tv' && !isTv) return false;
-                if (type === 'movie' && !isMovie) return false;
-                
+                if (type === 'movie' && isTv) return false;
+
                 const rt = cleanTitle(r.title);
                 return info.titles.some(t => {
                     const ct = cleanTitle(t);
@@ -214,39 +224,30 @@ async function getStreams(id, type, season, episode) {
     }
 
     if (!matchedPost) {
-        console.log("[SeriesMetro] No matching post found.");
+        console.log("[HomeCine] No matching post found.");
         return [];
     }
 
     let url = matchedPost.url;
-    console.log(`[SeriesMetro] Matched: "${matchedPost.title}" -> ${url}`);
+    console.log(`[HomeCine] Matched: "${matchedPost.title}" -> ${url}`);
 
     if (type === 'tv') {
         const html = await fetch(url, { headers: HEADERS }).then(r => r.text());
-        const epRegex = new RegExp(`href="([^"]+-\\d+x\\d+\\/)?"[^>]*>[^<]*${season}x${episode}`, 'i');
-        const epMatch = epRegex.exec(html) || new RegExp(`href="([^"]+episodio[^"]+${season}x${episode}[^"]*)"`, 'i').exec(html);
+        // homecine episode URLs look like: ...-temporada-1-capitulo-1...
+        // Format: <a href=".../episodios/NAME-1x1/"
+        // Balandro: if '-capitulo-' in url
+        // Let's just find the link with seasonxepisode or -temporada-Sx-capitulo-Ex
+        const epRegex = new RegExp(`href="([^"]+temporada-${season}-capitulo-${episode}[^"]*)"`, 'i');
+        const epMatch = epRegex.exec(html) || new RegExp(`href="([^"]+-[^"]*${season}x${episode}[^"]*)"`, 'i').exec(html);
         
         if (epMatch) {
             url = epMatch[1];
-            console.log(`[SeriesMetro] Found episode: ${url}`);
+            console.log(`[HomeCine] Found episode: ${url}`);
         } else {
+            // Usually /episodios/NAME-temporada-S-capitulo-E/
             const slug = url.split('/').filter(Boolean).pop();
-            const guessUrls = [
-                `${BASE_URL}/capitulo/${slug}-temporada-${season}-capitulo-${episode}/`,
-                `${BASE_URL}/episodio/${slug}-${season}x${episode}/`
-            ];
-            let foundUrl = null;
-            for (const gUrl of guessUrls) {
-                try {
-                    const r = await fetch(gUrl, { method: 'HEAD', headers: HEADERS });
-                    if (r.ok) {
-                        foundUrl = gUrl;
-                        break;
-                    }
-                } catch(e) {}
-            }
-            url = foundUrl || guessUrls[0];
-            console.log(`[SeriesMetro] Guessed episode url: ${url}`);
+            url = `${BASE_URL}/episodios/${slug}-temporada-${season}-capitulo-${episode}/`;
+            console.log(`[HomeCine] Guessing episode url: ${url}`);
         }
     }
 

@@ -697,7 +697,7 @@ function extractStreams(tmdbId, mediaType, season, episode) {
           const resolved = yield resolveVideo(embed.url, embed.server);
           if (resolved && resolved.url) {
             streams.push({
-              name: "DoramasFlix",
+              provider: "DoramasFlix",
               title: `[${embed.server}] ${resolved.quality || "720p"}`,
               url: resolved.url,
               quality: resolved.quality || "720p",
