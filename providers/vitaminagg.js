@@ -736,7 +736,7 @@ async function getStreams(tmdbId, mediaType, season, episode, title, host) {
                     console.log(`[VitaminagG] No video hash in data-src for ${opt}, treating as direct embed: ${videoBackendUrlRaw}`);
                     if (videoBackendUrlRaw.startsWith("http")) {
                         streams.push({
-                            name: "VitaminagG",
+                            provider: "VitaminagG",
                             title: `${title} \xB7 ${opt.replace('opcion', 'Opción')}`,
                             url: videoBackendUrlRaw,
                             quality: "1080p",
@@ -778,7 +778,7 @@ async function getStreams(tmdbId, mediaType, season, episode, title, host) {
                     // Extract direct source m3u8 stream
                     if (videoData.source) {
                         streams.push({
-                            name: "VitaminagG",
+                            provider: "VitaminagG",
                             title: `${videoData.title || title} \xB7 Directo`,
                             url: videoData.source,
                             quality: "1080p",
@@ -793,7 +793,7 @@ async function getStreams(tmdbId, mediaType, season, episode, title, host) {
                     // Extract proxy cloudflare stream (cf)
                     if (videoData.cf) {
                         streams.push({
-                            name: "VitaminagG",
+                            provider: "VitaminagG",
                             title: `${videoData.title || title} \xB7 Cloudflare`,
                             url: videoData.cf,
                             quality: "1080p",

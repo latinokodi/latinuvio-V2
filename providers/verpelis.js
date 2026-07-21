@@ -588,7 +588,7 @@ async function extractStreams(url) {
                             const resolved = await resolveEmbed(embedUrl);
                             if (resolved && resolved.url) {
                                 streams.push({
-                                    name: "VerPelis",
+                                    provider: "VerPelis",
                                     title: `${resolved.quality || "720p"} · ${opt.lang} · ${resolved.server}`,
                                     url: resolved.url,
                                     quality: resolved.quality || "720p",
@@ -624,7 +624,7 @@ async function extractStreams(url) {
                 const resolved = await resolveEmbed(embedUrl);
                 if (resolved && resolved.url) {
                     streams.push({
-                        name: "VerPelis",
+                        provider: "VerPelis",
                         title: `${resolved.quality || "720p"} · ${lang} · ${resolved.server}`,
                         url: resolved.url,
                         quality: resolved.quality || "720p",

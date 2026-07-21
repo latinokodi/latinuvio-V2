@@ -3026,7 +3026,7 @@ function getOnlineStreams(rawHtml) {
           seenUrls.add(directUrl);
           const resEmbed = yield resolveEmbed(directUrl);
           return {
-            name: "PelisGo",
+            provider: "PelisGo",
             langLabel: finalLang,
             serverLabel: serverName,
             url: resEmbed ? resEmbed.url : directUrl,

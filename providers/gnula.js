@@ -554,35 +554,35 @@ async function resolveVoe(embedUrl) {
 async function resolveEmbed(url) {
     if (isMirror(url, "STREAMWISH")) {
         const res = await resolveStreamwish(url);
-        if (res) return [{ name: "Gnula", title: `StreamWish`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `StreamWish`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     if (isMirror(url, "VIDHIDE")) {
         const res = await resolveVidhide(url);
-        if (res) return [{ name: "Gnula", title: `VidHide`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `VidHide`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     if (isMirror(url, "FILEMOON")) {
         const res = await resolveFilemoon(url);
-        if (res) return [{ name: "Gnula", title: `FileMoon`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `FileMoon`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     if (isMirror(url, "VOE")) {
         const res = await resolveVoe(url);
-        if (res) return [{ name: "Gnula", title: `VOE`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `VOE`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     if (isMirror(url, "DOODSTREAM")) {
         const res = await resolveDoodstream(url);
-        if (res) return [{ name: "Gnula", title: `DoodStream`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `DoodStream`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     if (isMirror(url, "STREAMTAPE")) {
         const res = await resolveStreamtape(url);
-        if (res) return [{ name: "Gnula", title: `StreamTape`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `StreamTape`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
     const u = url.toLowerCase();
     if (u.includes("ok.ru") || u.includes("okru")) {
-        return [{ name: "Gnula", title: `Ok.ru`, url: url, quality: "HD", headers: { "User-Agent": USER_AGENT, "Referer": "https://ww3.gnulahd.nu/" }}];
+        return [{ provider: "Gnula", title: `Ok.ru`, url: url, quality: "HD", isEmbed: true, headers: { "User-Agent": USER_AGENT, "Referer": "https://ww3.gnulahd.nu/" }}];
     }
     if (u.includes("waaw.to") || u.includes("netu.tv")) {
         const res = await resolveWaaw(url);
-        if (res) return [{ name: "Gnula", title: `Waaw`, url: res.url, quality: res.quality, headers: res.headers }];
+        if (res) return [{ provider: "Gnula", title: `Waaw`, url: res.url, quality: res.quality, isEmbed: false, headers: res.headers }];
     }
 
     if (url.includes("embed.php?id=")) {

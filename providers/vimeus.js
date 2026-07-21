@@ -608,7 +608,7 @@ function processJsonData(dataStr) {
             const langLabel = embed.lang ? `[${embed.lang}] ` : "";
             const qualityLabel = resolved.quality || embed.quality || "720p";
             streams.push({
-              name: "Vimeus",
+              provider: "Vimeus",
               title: `${langLabel}[${serverName}] ${qualityLabel}`,
               url: resolved.url,
               quality: qualityLabel,

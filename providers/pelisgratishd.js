@@ -230,7 +230,7 @@ async function resolveEmbedUrl(url, ref) {
                     
                     if (directMediaUrl) {
                         streams.push({
-                            name: "PelisGratisHD",
+                            provider: "PelisGratisHD",
                             title: `${serverName.toUpperCase()} (${lang})`,
                             url: directMediaUrl,
                             quality: "HD",

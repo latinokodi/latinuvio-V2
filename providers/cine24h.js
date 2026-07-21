@@ -140,7 +140,7 @@ async function getStreams(id, type, season, episode) {
             if (!decodedUrl || !decodedUrl.startsWith("http")) continue;
 
             streams.push({
-                name: "Cine24H",
+                provider: "Cine24H",
                 title: `${serverName} (${lang})`,
                 url: decodedUrl,
                 quality: qlty,
@@ -156,7 +156,7 @@ async function getStreams(id, type, season, episode) {
                 if (embedUrl.includes("youtube") || embedUrl === "null") continue;
                 if (embedUrl.startsWith("//")) embedUrl = "https:" + embedUrl;
                 streams.push({
-                    name: "Cine24H",
+                    provider: "Cine24H",
                     title: "Embed",
                     url: embedUrl,
                     quality: "HD",

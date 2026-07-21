@@ -24,29 +24,6 @@
       ]
     },
     {
-      "id": "sololatino",
-      "name": "SoloLatino",
-      "description": "Servidores universales de alta gama con Player+ (Directo).",
-      "version": "3.4.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/sololatino.js",
-      "enabled": true,
-      "logo": "https://sololatino.net/images/logo.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "pelisgo",
       "name": "PelisGo",
       "description": "Descargas directas y streaming de alta fidelidad.",
@@ -319,22 +296,6 @@
       ]
     },
     {
-      "id": "peliserieshoy",
-      "name": "PelisSeriesHoy",
-      "description": "Streams en Latino desde PelisSeriesHoy.",
-      "version": "2.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/peliserieshoy.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "areshd",
       "name": "AresHD",
       "description": "Películas y series en Latino y Español desde AresHD.",
@@ -507,6 +468,224 @@
         "es"
       ],
       "logo": "https://verpelis.gratis/favicon.ico"
+    },
+    {
+      "id": "allpeliculasse",
+      "name": "AllpeliculasSE",
+      "description": "Películas y series en Latino, Castellano y VOSE desde Allpeliculas.",
+      "version": "1.0.0",
+      "author": "custom-latino",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/allpeliculasse.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://allpeliculas.la/favicon.ico"
+    },
+    {
+      "id": "elifilms",
+      "name": "EliFilms",
+      "description": "Películas y series en Latino, Castellano y VOSE desde AllCalidad.re (EliFilms).",
+      "version": "1.0.0",
+      "author": "custom-latino",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/elifilms.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://allcalidad.re/favicon.ico"
+    },
+    {
+      "id": "entrepeliculasyseries",
+      "name": "EntrePeliculasySeries",
+      "description": "Películas y series en Latino, Castellano y VOSE desde EntrePeliculasySeries.nz.",
+      "version": "1.0.0",
+      "author": "custom-latino",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/entrepeliculasyseries.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://entrepeliculasyseries.nz/favicon.ico"
+    },
+    {
+      "id": "megadedeoficial",
+      "name": "MegaDedeOficial",
+      "description": "Películas y series en Latino, Castellano y VOSE desde MegaDede.mobi.",
+      "version": "1.0.0",
+      "author": "custom-latino",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/megadedeoficial.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://megadede.mobi/favicon.ico"
+    },
+    {
+      "id": "pelis182",
+      "name": "Pelis182",
+      "description": "Gran catálogo de películas y series en Latino/Español desde Pelis182.net.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelis182.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ]
+    },
+    {
+      "id": "lacartoons",
+      "name": "La Cartoons",
+      "description": "Series animadas y cartoons clásicos en español latino desde LaCartoons.com.",
+      "version": "1.1.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/lacartoons.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://images2.imgbox.com/fc/26/S7f7dn42_o.png"
+    },
+    {
+      "id": "retrolatino",
+      "name": "Retro Latino",
+      "description": "Películas, series y caricaturas clásicas en español latino desde Cineova (Retro Latino).",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/retrolatino.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://cineova.site/favicon.ico"
+    },
+    {
+      "id": "retrotve",
+      "name": "Colección 2",
+      "description": "Catálogo retro de películas y series de televisión clásicas desde retrotve.com.",
+      "version": "1.1.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/retrotve.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://retrotve.com/favicon.ico"
+    },
+    {
+      "id": "animeav1",
+      "name": "AnimeAV1",
+      "description": "Portal de anime especializado con encode moderno y gran velocidad.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/animeav1.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://animeav1.com/favicon.ico"
+    },
+    {
+      "id": "henaojara",
+      "name": "Henaojara",
+      "description": "Gran catálogo de anime en audio latino y castellano desde henaojara.net.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/henaojara.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://ww1.henaojara.net/favicon.ico"
+    },
+    {
+      "id": "homecine",
+      "name": "HomeCine",
+      "description": "Películas y series de HomeCine (homecine.to).",
+      "version": "1.0.0",
+      "author": "custom-latino",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/homecine.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://www3.homecine.to/favicon.ico"
+    },
+    {
+      "id": "mirandogratis",
+      "name": "MirandoGratis",
+      "description": "Películas desde MirandoGratis.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie"
+      ],
+      "filename": "providers/mirandogratis.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://mirandogratis.com/favicon.ico"
+    },
+    {
+      "id": "veronline",
+      "name": "VerOnline",
+      "description": "Películas y series en español latino.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/veronline.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "logo": "https://www.veronline.tax/favicon.ico"
     }
   ]
 }

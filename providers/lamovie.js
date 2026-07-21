@@ -480,7 +480,7 @@ function processOneEmbed(embed) {
     var qualityLabel = embed.quality || result.quality || "1080p";
     var displayQuality = serverName + " \xB7 " + qualityLabel;
     return {
-      name: "LaMovie",
+      provider: "LaMovie",
       title: displayQuality,
       url: result.url,
       quality: displayQuality,
