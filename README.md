@@ -5,10 +5,10 @@
   # Proveedores Latino para Nuvio
 
   [![Version](https://img.shields.io/badge/version-0.2.0-blueviolet?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
+  [![Proveedores](https://img.shields.io/badge/Proveedores-37-blue?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
   [![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
-  [![Platform](https://img.shields.io/badge/platform-Nuvio-blue?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
 
-  Un proyecto independiente diseñado para ofrecer una colección optimizada y de alto rendimiento de scrapers en **Español Latino y Castellano** para la aplicación **Nuvio**.
+  Colección de 37 proveedores HTTP optimizados en **Español Latino y Castellano** para la aplicación **Nuvio**.
 
 </div>
 
@@ -36,6 +36,18 @@ https://raw.githubusercontent.com/latinokodi/latinuvio-V2/main/manifest.json
 ```
 
 5. Los módulos se activarán automáticamente para realizar la búsqueda de contenido.
+
+---
+
+## Ecosistema
+
+Este repositorio es parte del ecosistema Latino para Nuvio:
+
+-   **[Nuvio TV](https://github.com/NuvioMedia/NuvioTV)** — Aplicación oficial para Android TV
+-   **[Nuvio Mobile](https://github.com/NuvioMedia/NuvioMobile)** — Aplicación oficial para iOS y Android
+-   **[Nuvio Web](https://github.com/NuvioMedia/NuvioWeb)** — Versión web para Smart TVs (webOS, Tizen)
+
+Visita **[latinokodi.site](https://latinokodi.site)** para tutoriales, comunidad y soporte.
 
 ---
 
