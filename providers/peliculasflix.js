@@ -1,5 +1,5 @@
 /**
- * PeliculasFlix provider — ported from plugin.video.balandro (channels/peliculasflix.py)
+ * PeliculasFlix provider
  * Source site: https://peliculasflix.co/
  * API base: https://fluxcedene.net/api/gql
  *

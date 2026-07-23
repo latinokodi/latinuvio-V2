@@ -1,5 +1,5 @@
 /**
- * MegaDedeOficial provider — ported from plugin.video.balandro (channels/megadedeoficial.py)
+ * MegaDedeOficial provider
  * Source site: https://megadede.mobi/
  *
  * Architecture:
