@@ -85,6 +85,86 @@ async function resolveWaaw(embedUrl) {
     return null;
 }
 
+function unpackEval(payload, radix, symtab) {
+    const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const unbase = (str) => {
+        let result = 0;
+        for (let i = 0; i < str.length; i++) {
+            const pos = chars.indexOf(str[i]);
+            if (pos === -1) return NaN;
+            result = result * radix + pos;
+        }
+        return result;
+    };
+    return payload.replace(/\b([0-9a-zA-Z]+)\b/g, (match) => {
+        const idx = unbase(match);
+        if (isNaN(idx) || idx >= symtab.length) return match;
+        return symtab[idx] && symtab[idx] !== "" ? symtab[idx] : match;
+    });
+}
+
+function evalUnpack(script) {
+    try {
+        const m = script.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[\s\S]*?\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+        if (!m) return null;
+        return unpackEval(m[1], parseInt(m[2]), m[4].split("|"));
+    } catch { return null; }
+}
+
+function extractDirectUrl(text) {
+    let m = text.match(/(?:sources|file)\s*:\s*\[?"?(https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*)/i);
+    if (m) return m[1];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.mp4[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    return null;
+}
+
+async function resolveUnpackEval(url, referer) {
+    try {
+        const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+        const evalMatch = html.match(/eval\s*\(\s*function\s*\(p,a,c,k,e,[dr]\)[\s\S]*?\.split\('\|'\)[^)]*\)\)/);
+        if (evalMatch) {
+            const unpacked = evalUnpack(evalMatch[0]);
+            if (unpacked) {
+                const direct = extractDirectUrl(unpacked);
+                if (direct) return direct;
+            }
+        }
+        const direct = extractDirectUrl(html);
+        if (direct) return direct;
+    } catch (e) {}
+    return null;
+}
+
+function isMirror(url, domains) {
+    const u = (url || "").toLowerCase();
+    return domains.some(d => u.includes(d));
+}
+
+async function resolveEmbed(url, referer) {
+    const u = url.toLowerCase();
+    if (isMirror(u, ["streamwish", "vidhide", "awish", "hlswish", "hglink", "strwish",
+        "embedwish", "wishfast", "sfastwish", "hanerix", "dwish", "wishembed"])) {
+        try {
+            const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+            let m = html.match(/sources\s*:\s*\[([^\]]+)\]/);
+            if (m) { const d = extractDirectUrl(m[1]); if (d) return d; }
+            return await resolveUnpackEval(url, referer);
+        } catch (e) {}
+    }
+    if (/voe\.(sx|to|tv|me|cc)|voex\./i.test(u)) {
+        try {
+            const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+            let m = html.match(/['"]hls['"]:\s*['"](https?:[^'"]+)['"]/);
+            if (m) return m[1].replace(/\\\//g, '/');
+            return await resolveUnpackEval(url, referer);
+        } catch (e) {}
+    }
+    return await resolveUnpackEval(url, referer);
+}
+
 async function extractStreams(pageUrl) {
     try {
         const html = await fetch(pageUrl, { headers: HEADERS }).then(r => r.text());
@@ -117,6 +197,18 @@ async function extractStreams(pageUrl) {
                     });
                     continue;
                 }
+            }
+
+            const resolved = await resolveEmbed(embedUrl, BASE_URL);
+            if (resolved) {
+                streams.push({
+                    name: "MirandoGratis",
+                    title: `${serverName} (${audio})`,
+                    url: resolved,
+                    quality: '720p',
+                    headers: { 'Referer': embedUrl, 'User-Agent': HEADERS["User-Agent"] }
+                });
+                continue;
             }
 
             streams.push({

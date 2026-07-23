@@ -128,6 +128,58 @@ async function resolveFilemoon(embedUrl) {
 
 // ── Trembed / DooPlay system ────────────────────────────────────────────
 
+function extractDirectUrl(text) {
+    let m = text.match(/(?:sources|file)\s*:\s*\[?"?(https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*)/i);
+    if (m) return m[1];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.mp4[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    return null;
+}
+
+function isMirror(url, domains) {
+    const u = (url || "").toLowerCase();
+    return domains.some(d => u.includes(d));
+}
+
+function evalUnpackInline(script) {
+    const m = script.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[\s\S]*?\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+    if (!m) return null;
+    const chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const radix = parseInt(m[2]), symtab = m[4].split("|");
+    const unbase = (s) => { let r = 0; for (const c of s) r = r * radix + chars.indexOf(c); return r; };
+    return m[1].replace(/\b([0-9a-zA-Z]+)\b/g, (match) => {
+        const idx = unbase(match);
+        return (!isNaN(idx) && symtab[idx] && symtab[idx] !== "") ? symtab[idx] : match;
+    });
+}
+
+async function resolveStreamWishInline(url) {
+    try {
+        const html = await localFetch(url, { headers: { "Referer": url } }).then(r => r.text());
+        let m = html.match(/sources\s*:\s*\[([^\]]+)\]/);
+        if (m) { const d = extractDirectUrl(m[1]); if (d) return d; }
+        const em = html.match(/eval\s*\(\s*function\s*\(p,a,c,k,e,[dr]\)[\s\S]*?\.split\('\|'\)[^)]*\)\)/);
+        if (em) { const up = evalUnpackInline(em[0]); if (up) { const d = extractDirectUrl(up); if (d) return d; } }
+        const d = extractDirectUrl(html); if (d) return d;
+    } catch (e) {}
+    return null;
+}
+
+async function resolveVOEInline(url) {
+    try {
+        const html = await localFetch(url, { headers: { "Referer": url } }).then(r => r.text());
+        let m = html.match(/['"]hls['"]:\s*['"](https?:[^'"]+)['"]/);
+        if (m) return m[1].replace(/\\\//g, '/');
+        m = html.match(/(?:file|src)\s*:\s*['"](https?:[^'"]+\.m3u8[^'"]*)['"]/);
+        if (m) return m[1].replace(/\\\//g, '/');
+        const em = html.match(/eval\s*\(\s*function\s*\(p,a,c,k,e,[dr]\)[\s\S]*?\.split\('\|'\)[^)]*\)\)/);
+        if (em) { const up = evalUnpackInline(em[0]); if (up) { const d = extractDirectUrl(up); if (d) return d; } }
+    } catch (e) {}
+    return null;
+}
+
 async function extractVideoLinks(pageUrl) {
     const streams = [];
     try {
@@ -225,6 +277,38 @@ async function extractVideoLinks(pageUrl) {
                             url: resolved.url,
                             quality: resolved.quality,
                             headers: resolved.headers
+                        });
+                        continue;
+                    }
+                }
+
+                // Try StreamWish/VidHide inline resolver
+                if (isMirror(src, ["streamwish", "vidhide", "awish", "hlswish", "hglink", "strwish",
+                    "embedwish", "wishfast", "sfastwish", "hanerix", "dwish", "wishembed",
+                    "minochinos", "vadisov", "filelions", "movearnpre"])) {
+                    const resolved = await resolveStreamWishInline(src);
+                    if (resolved) {
+                        streams.push({
+                            provider: "Colección 2",
+                            title: `${serverName} · Direct`,
+                            url: resolved,
+                            quality: "720p",
+                            headers: { "Referer": src, "User-Agent": UA }
+                        });
+                        continue;
+                    }
+                }
+
+                // Try VOE inline resolver
+                if (isMirror(src, ["voe.sx", "voe.to", "voe.tv", "voex."])) {
+                    const resolved = await resolveVOEInline(src);
+                    if (resolved) {
+                        streams.push({
+                            provider: "Colección 2",
+                            title: `${serverName} · Direct`,
+                            url: resolved,
+                            quality: "720p",
+                            headers: { "Referer": src, "User-Agent": UA }
                         });
                         continue;
                     }
