@@ -35,7 +35,37 @@ function localFetch(url, options = {}) {
 }
 
 const EMBED_SAFE = ["streamwish", "strwish", "embedwish", "vidhide", "voe", "filemoon",
-    "mixdrop", "dood", "uqload", "streamtape", "ok.ru", "mp4upload", "yourupload"];
+    "mixdrop", "dood", "uqload", "streamtape", "ok.ru", "mp4upload", "yourupload",
+    "sendvid", "dhtpre"];
+
+// ── SendVid Resolver (from Kodi resolveurl) ─────────────────────────────
+
+async function resolveSendvid(embedUrl) {
+    try {
+        // Normalize: extract video ID from URL
+        const idMatch = embedUrl.match(/sendvid\.com\/(?:embed\/)?([a-z0-9]+)/i);
+        if (!idMatch) return null;
+        const url = `https://sendvid.com/${idMatch[1]}`;
+        
+        const resp = await localFetch(url);
+        if (resp.status !== 200) return null;
+        const html = await resp.text();
+        
+        // Extract source src from video tag
+        const srcMatch = html.match(/source\s+src="([^"]+)"/i);
+        if (srcMatch) {
+            return { url: srcMatch[1], server: "SendVid", quality: "720p",
+                headers: { "Referer": "https://sendvid.com/", "User-Agent": UA } };
+        }
+        // Try og:video meta
+        const ogMatch = html.match(/<meta\s+property="og:video(?::secure_url)?"\s+content="([^"]+)"/i);
+        if (ogMatch) {
+            return { url: ogMatch[1], server: "SendVid", quality: "720p",
+                headers: { "Referer": "https://sendvid.com/", "User-Agent": UA } };
+        }
+        return null;
+    } catch { return null; }
+}
 
 // ── FileMoon Resolver (from Kodi addon) ──────────────────────────────────
 
@@ -173,6 +203,21 @@ async function extractVideoLinks(pageUrl) {
                 // Try FileMoon resolver
                 if (src.includes("filemoon")) {
                     const resolved = await resolveFilemoon(src);
+                    if (resolved && resolved.url) {
+                        streams.push({
+                            provider: "Colección 2",
+                            title: `${resolved.server} · Direct`,
+                            url: resolved.url,
+                            quality: resolved.quality,
+                            headers: resolved.headers
+                        });
+                        continue;
+                    }
+                }
+
+                // Try SendVid resolver
+                if (src.includes("sendvid")) {
+                    const resolved = await resolveSendvid(src);
                     if (resolved && resolved.url) {
                         streams.push({
                             provider: "Colección 2",
