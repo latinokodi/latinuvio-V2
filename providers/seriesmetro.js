@@ -109,6 +109,78 @@ async function resolveFastream(url) {
     return null;
 }
 
+function extractDirectUrl(text) {
+    let m = text.match(/(?:sources|file)\s*:\s*\[?"?(https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*)/i);
+    if (m) return m[1];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.m3u8[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    m = text.match(/https?:\/\/[^\s"'<>\[\]]+\.mp4[^\s"'<>\[\]]*/i);
+    if (m) return m[0];
+    return null;
+}
+
+async function resolveUnpackEval(url, referer) {
+    try {
+        const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+        const evalMatch = html.match(/eval\s*\(\s*function\s*\(p,a,c,k,e,[dr]\)[\s\S]*?\.split\('\|'\)[^)]*\)\)/);
+        if (evalMatch) {
+            const unpacked = evalUnpack(evalMatch[0]);
+            if (unpacked) {
+                const direct = extractDirectUrl(unpacked);
+                if (direct) return direct;
+            }
+        }
+        const direct = extractDirectUrl(html);
+        if (direct) return direct;
+    } catch (e) {}
+    return null;
+}
+
+async function resolveStreamWish(url, referer) {
+    try {
+        const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+        let m = html.match(/sources\s*:\s*\[([^\]]+)\]/);
+        if (m) {
+            const direct = extractDirectUrl(m[1]);
+            if (direct) return direct;
+        }
+        return await resolveUnpackEval(url, referer);
+    } catch (e) {}
+    return null;
+}
+
+async function resolveVOE(url, referer) {
+    try {
+        const html = await fetch(url, { headers: { ...HEADERS, "Referer": referer || url } }).then(r => r.text());
+        let m = html.match(/['"]hls['"]:\s*['"](https?:[^'"]+)['"]/);
+        if (m) return m[1].replace(/\\\//g, '/');
+        m = html.match(/(?:file|src)\s*:\s*['"](https?:[^'"]+\.m3u8[^'"]*)['"]/);
+        if (m) return m[1].replace(/\\\//g, '/');
+        return await resolveUnpackEval(url, referer);
+    } catch (e) {}
+    return null;
+}
+
+function isMirror(url, domains) {
+    const u = (url || "").toLowerCase();
+    return domains.some(d => u.includes(d));
+}
+
+async function resolveEmbed(url, referer) {
+    const u = url.toLowerCase();
+    if (isMirror(u, ["streamwish", "vidhide", "awish", "hlswish", "hglink", "minochinos",
+        "vadisov", "vaiditv", "amusemre", "callistanise", "vhaudm", "mdfury",
+        "dintezuvio", "acek-cdn", "vedonm", "vidhidepro", "vidhidevip", "masukestin"])) {
+        return await resolveStreamWish(url, referer);
+    }
+    if (/voe\.(sx|to|tv|me|cc)|voex\./i.test(u)) return await resolveVOE(url, referer);
+    if (isMirror(u, ["filemoon", "moonalu", "moonembed", "bysedikamoum", "r66nv9ed", "bysejikuar", "fmoon"])) {
+        return await resolveUnpackEval(url, referer);
+    }
+    if (isMirror(u, ["wolfstream", "waaw", "streamtape"])) return await resolveUnpackEval(url, referer);
+    return await resolveUnpackEval(url, referer);
+}
+
 async function extractStreams(pageUrl) {
     try {
         const html = await fetch(pageUrl, { headers: HEADERS }).then(r => r.text());
@@ -162,10 +234,25 @@ async function extractStreams(pageUrl) {
                                     name: "SeriesMetro",
                                     title: `${serverName} (${lang})`,
                                     url: direct,
-                                    quality: 'HD'
+                                    quality: 'HD',
+                                    headers: { "Referer": "https://fastream.to/" }
                                 });
                                 continue;
                             }
+                        }
+
+                        // Try direct embed resolution before delegating
+                        const resolved = await resolveEmbed(realUrl, pageUrl);
+                        if (resolved) {
+                            console.log(`[SeriesMetro] Resolved ${serverName} → ${resolved.substring(0, 60)}...`);
+                            streams.push({
+                                name: "SeriesMetro",
+                                title: `${serverName} (${lang})`,
+                                url: resolved,
+                                quality: 'HD',
+                                headers: { "Referer": realUrl }
+                            });
+                            continue;
                         }
                         
                         streams.push({
