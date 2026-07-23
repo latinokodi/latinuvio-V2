@@ -275,6 +275,18 @@ async function resolveEmbed(embedUrl) {
     if (u.includes("cvid.lat")) {
         return resolveCvid(embedUrl);
     }
+    if (u.includes("uqload")) {
+        const { resolveUqload } = require("./cdn_resolvers");
+        return resolveUqload(embedUrl);
+    }
+    if (u.includes("goodstream")) {
+        const { resolveGoodstream } = require("./cdn_resolvers");
+        return resolveGoodstream(embedUrl);
+    }
+    if (u.includes("vimeos")) {
+        const { resolveVimeos } = require("./cdn_resolvers");
+        return resolveVimeos(embedUrl);
+    }
     
     console.log(`[Cinemitas] No resolver found for embed: ${embedUrl}`);
     return null;
