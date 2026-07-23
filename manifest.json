@@ -344,21 +344,6 @@
       ]
     },
     {
-      "id": "tioanime",
-      "name": "TioAnime",
-      "description": "Anime en VOSE desde TioAnime.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/tioanime.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "repelishd",
       "name": "RepelisHD",
       "description": "Películas y series desde RepelisHD.",
@@ -570,23 +555,6 @@
       "logo": "https://images2.imgbox.com/fc/26/S7f7dn42_o.png"
     },
     {
-      "id": "retrolatino",
-      "name": "Retro Latino",
-      "description": "Películas, series y caricaturas clásicas en español latino desde Cineova (Retro Latino).",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/retrolatino.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://cineova.site/favicon.ico"
-    },
-    {
       "id": "retrotve",
       "name": "Colección 2",
       "description": "Catálogo retro de películas y series de televisión clásicas desde retrotve.com.",
@@ -653,39 +621,6 @@
         "es"
       ],
       "logo": "https://www3.homecine.to/favicon.ico"
-    },
-    {
-      "id": "mirandogratis",
-      "name": "MirandoGratis",
-      "description": "Películas desde MirandoGratis.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie"
-      ],
-      "filename": "providers/mirandogratis.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://mirandogratis.com/favicon.ico"
-    },
-    {
-      "id": "veronline",
-      "name": "VerOnline",
-      "description": "Películas y series en español latino.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/veronline.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://www.veronline.tax/favicon.ico"
     }
   ]
 }
