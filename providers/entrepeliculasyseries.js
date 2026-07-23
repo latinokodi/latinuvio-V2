@@ -27,14 +27,7 @@ const HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
     "Accept-Language": "es-MX,es-US;q=0.9,es;q=0.8,en-US;q=0.7,en;q=0.6",
     "Referer": HOST + "/",
-    "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "same-origin",
-    "Pragma": "no-cache",
-    "Cache-Control": "no-cache"
+    "Connection": "keep-alive"
 };
 
 // ---------------------------------------------------------------------------
@@ -115,9 +108,45 @@ function decodeHtmlEntities(str) {
         .replace(/&nbsp;/g, " ");
 }
 
+const https = require('https');
+
+function localFetch(url, options = {}) {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(url);
+        // Create fresh agent per request to avoid TLS session issues
+        const agent = new https.Agent({
+            rejectUnauthorized: false,
+            ciphers: 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256:ECDHE-RSA-AES128-GCM-SHA256',
+            maxVersion: 'TLSv1.3',
+        });
+        https.request({
+            hostname: parsed.hostname,
+            path: parsed.pathname + parsed.search,
+            method: options.method || 'GET',
+            headers: { ...HEADERS, ...(options.headers || {}) },
+            agent,
+            timeout: 15000,
+        }, res => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                agent.destroy();
+                resolve({ ok: res.statusCode < 400, status: res.statusCode, text: () => Promise.resolve(data) });
+            });
+        }).on('error', e => {
+            agent.destroy();
+            reject(e);
+        }).on('timeout', function() {
+            agent.destroy();
+            this.destroy();
+            reject(new Error('timeout'));
+        }).end();
+    });
+}
+
 async function fetchPage(url, extraHeaders = {}) {
     try {
-        const res = await fetch(url, { headers: { ...HEADERS, ...extraHeaders } });
+        const res = await localFetch(url, { headers: extraHeaders });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return await res.text();
     } catch (e) {

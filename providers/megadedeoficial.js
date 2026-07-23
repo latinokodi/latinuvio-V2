@@ -370,6 +370,14 @@ async function resolveStreamwish(embedUrl) {
     } catch { return null; }
 }
 
+function evalUnpack(script) {
+    try {
+        const m = script.match(/\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+        if (!m) return null;
+        return unpackEval(m[1], parseInt(m[2]), m[4].split("|"));
+    } catch { return null; }
+}
+
 async function resolveVidhide(embedUrl) {
     try {
         const origin = new URL(embedUrl).origin;
@@ -377,17 +385,22 @@ async function resolveVidhide(embedUrl) {
         if (!res.ok) return null;
         const html = await res.text();
         let finalUrl = null;
-        const pm = html.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
-        if (pm) {
-            const up = unpackEval(pm[0], ...(() => { const m = pm[0].match(/\('([\s\S]+?)',(\d+),(\d+),'([\s\S]+?)'\.split/); return m ? [m[1], parseInt(m[2]), m[4].split("|")] : [pm[0], 10, []]; })());
-            const hm = up.match(/"hls[24]"\s*:\s*"([^"]+)"/);
-            if (hm) finalUrl = hm[1];
-            if (!finalUrl) { const mm = up.match(/https?:\/\/[^\s"'\\]+\.m3u8[^\s"'\\]*/i); if (mm) finalUrl = mm[0]; }
+        const packedMatch = html.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+        if (packedMatch) {
+            const unpacked = evalUnpack(packedMatch[0]);
+            if (unpacked) {
+                const hlsMatch = unpacked.match(/"hls[24]"\s*:\s*"([^"]+)"/);
+                if (hlsMatch) finalUrl = hlsMatch[1];
+                if (!finalUrl) {
+                    const m3 = unpacked.match(/https?:\/\/[^\s"'\\]+\.m3u8[^\s"'\\]*/i);
+                    if (m3) finalUrl = m3[0];
+                }
+            }
         }
         if (!finalUrl) { const rm = html.match(/"hls[24]"\s*:\s*"([^"]+)"/) || html.match(/file\s*:\s*["']([^"']+)["']/i); if (rm) finalUrl = rm[1]; }
         if (!finalUrl) return null;
         if (!finalUrl.startsWith("http")) finalUrl = origin + finalUrl;
-        return { url: finalUrl, server: "VidHide", quality: "1080p", headers: { "User-Agent": USER_AGENT, Referer: `${origin}/`, Origin: origin } };
+        return { url: finalUrl, server: "VidHide", quality: "1080p", headers: { "User-Agent": USER_AGENT, "Referer": `${origin}/`, "Origin": origin } };
     } catch { return null; }
 }
 
@@ -564,7 +577,6 @@ async function getStreams(id, type, season, episode) {
                     headers: resolved.headers || { Referer: decryptedUrl }
                 });
             } else {
-                // Fallback to returning the raw embed if our internal resolver fails
                 streams.push({
                     provider: "MegaDedeOficial",
                     title: `HD · ${lang} · ${embed.servername}`,
