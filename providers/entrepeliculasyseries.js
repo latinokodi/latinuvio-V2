@@ -1,5 +1,5 @@
 /**
- * EntrePeliculasySeries provider — ported from plugin.video.balandro (channels/entrepeliculasyseries.py)
+ * EntrePeliculasySeries provider
  * Source site: https://entrepeliculasyseries.nz/
  *
  * Architecture:
@@ -609,7 +609,7 @@ async function resolveGoodstream(embedUrl) {
     } catch (err) { return null; }
 }
 
-// Server name from Balandro → embed URL resolver routing
+// Server name → embed URL resolver routing
 function serverNameToResolver(servername, url) {
     const sn = (servername || "").toLowerCase();
     if (sn.includes("vidhide") || sn.includes("filelions") || sn.includes("vidhidepro")) return resolveVidhide(url);

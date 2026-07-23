@@ -135,7 +135,7 @@ async function extractStreams(pageUrl) {
 }
 
 async function getStreams(id, type, season, episode) {
-    if (type !== "movie") return []; // Site seems to be movies only based on balandro script
+    if (type !== "movie") return []; // Site is movies only
     
     console.log(`[MirandoGratis] Resolving: ${type} ${id}`);
     const info = await getTMDBInfo(id, type);

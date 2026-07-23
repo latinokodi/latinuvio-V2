@@ -1,5 +1,5 @@
 /**
- * Embed resolvers for uqload, goodstream, vimeos — ported from Balandro Kodi addon.
+ * Embed resolvers for uqload, goodstream, vimeos.
  * Each resolver takes an embed URL, fetches the page, and extracts direct m3u8/mp4.
  */
 

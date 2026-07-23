@@ -1,5 +1,5 @@
 /**
- * EliFilms provider — ported from plugin.video.balandro (channels/elifilms.py)
+ * EliFilms provider
  * Source site: https://allcalidad.re/
  * API base: https://allcalidad.re/api/rest/
  *
@@ -700,7 +700,7 @@ async function getStreams(id, type, season, episode) {
     for (const embed of embeds) {
         let url = (embed.url || "").replace(/\\\//g, "/");
 
-        // Skip unsupported or torrent links (matches balandro's filter list)
+        // Skip unsupported or torrent links
         if (!url || !url.startsWith("http")) continue;
         const uLow = url.toLowerCase();
         if (uLow.includes("sbcom") || uLow.includes("lvturbo") || uLow.includes("vanfem") ||

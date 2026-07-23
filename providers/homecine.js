@@ -235,7 +235,7 @@ async function getStreams(id, type, season, episode) {
         const html = await fetch(url, { headers: HEADERS }).then(r => r.text());
         // homecine episode URLs look like: ...-temporada-1-capitulo-1...
         // Format: <a href=".../episodios/NAME-1x1/"
-        // Balandro: if '-capitulo-' in url
+        // if '-capitulo-' in url
         // Let's just find the link with seasonxepisode or -temporada-Sx-capitulo-Ex
         const epRegex = new RegExp(`href="([^"]+temporada-${season}-capitulo-${episode}[^"]*)"`, 'i');
         const epMatch = epRegex.exec(html) || new RegExp(`href="([^"]+-[^"]*${season}x${episode}[^"]*)"`, 'i').exec(html);
