@@ -186,91 +186,90 @@ async function extractStreams(pageUrl) {
         const html = await fetch(pageUrl, { headers: HEADERS }).then(r => r.text());
         const streams = [];
         
-        const tabsRe = /<a[^>]*href="#(options-[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-        const tabs = [];
-        let tMatch;
-        while ((tMatch = tabsRe.exec(html)) !== null) {
-            const id = tMatch[1];
-            const labelHtml = tMatch[2];
-            const label = labelHtml.replace(/<[^>]+>/g, '').trim();
-            tabs.push({ id, label });
+        // Site v2 structure: <div id="options-N"><iframe data-src="?trembed=N&trid=X&trtype=1">
+        // No longer uses tab-based navigation — options divs are inline
+        const optRegex = /<div\s+id="(options-\d+)"[^>]*>([\s\S]*?)<\/div>\s*(?=(?:<div\s+id="options-|<\/aside>))/gi;
+        const options = [];
+        let optMatch;
+        while ((optMatch = optRegex.exec(html)) !== null) {
+            const id = optMatch[1];
+            const block = optMatch[2];
+            const srcMatch = /<iframe[^>]+(?:src|data-src)="([^"]+)"/i.exec(block);
+            if (srcMatch) {
+                options.push({ id, url: srcMatch[1].replace(/&#038;/g, '&') });
+            }
         }
         
-        for (const tab of tabs) {
-            const blockRe = new RegExp(`<div id="${tab.id}"[\\s\\S]*?<iframe[^>]+(?:data-src|src)="([^"]+)"`, 'i');
-            const bMatch = blockRe.exec(html);
-            if (bMatch) {
-                const proxyUrl = bMatch[1].replace(/&#038;/g, '&');
-                let lang = 'Lat';
-                let serverName = 'Fastream';
+        // Fallback: find all iframes with trembed URLs
+        if (options.length === 0) {
+            const frameRegex = /<iframe[^>]+(?:src|data-src)="([^"]*\?trembed=\d[^"]*)"[^>]*>/gi;
+            let fm;
+            while ((fm = frameRegex.exec(html)) !== null) {
+                const url = fm[1].replace(/&#038;/g, '&');
+                if (!options.find(o => o.url === url)) {
+                    options.push({ id: 'options-' + options.length, url });
+                }
+            }
+        }
+        
+        for (let i = 0; i < options.length; i++) {
+            const opt = options[i];
+            const proxyUrl = opt.url;
+            const serverName = 'Opcion ' + (i + 1);
+            const lang = 'Lat';
+            
+            try {
+                const pRes = await fetch(proxyUrl, { headers: { ...HEADERS, 'Referer': pageUrl } });
+                const pHtml = await pRes.text();
+                const realMatch = /<iframe[^>]+src="([^"]+)"/i.exec(pHtml);
+                if (!realMatch) continue;
                 
-                const parts = tab.label.split('-');
-                if (parts.length > 1) {
-                    serverName = parts[0].trim() || 'Fastream';
-                    lang = parts[1].trim();
-                } else {
-                    serverName = tab.label;
+                let realUrl = realMatch[1];
+                if (realUrl.includes('cinemaupload.com')) {
+                    realUrl = realUrl.replace('/cinemaupload.com/', '/embed.cload.video/');
                 }
                 
-                if (lang === 'Latino' || lang === 'Español Latino') lang = 'Lat';
-                if (lang === 'Castellano' || lang === 'Español') lang = 'Esp';
-                if (lang === 'VOSE' || lang === 'Sub') lang = 'Vose';
-                
-                // Fetch proxy URL to get real embed
-                try {
-                    const pRes = await fetch(proxyUrl, { headers: { ...HEADERS, 'Referer': pageUrl } });
-                    const pHtml = await pRes.text();
-                    const realMatch = /<iframe[^>]+src="([^"]+)"/i.exec(pHtml);
-                    if (realMatch) {
-                        let realUrl = realMatch[1];
-                        if (realUrl.includes('cinemaupload.com')) {
-                            realUrl = realUrl.replace('/cinemaupload.com/', '/embed.cload.video/');
-                        }
-                        
-                        if (realUrl.includes('fastream.to')) {
-                            const direct = await resolveFastream(realUrl);
-                            if (direct) {
-                                streams.push({
-                                    name: "SeriesMetro",
-                                    title: `${serverName} (${lang})`,
-                                    url: direct,
-                                    quality: 'HD',
-                                    headers: { "Referer": "https://fastream.to/" }
-                                });
-                                continue;
-                            }
-                        }
-
-                        // Try direct embed resolution before delegating
-                        const resolved = await resolveEmbed(realUrl, pageUrl);
-                        if (resolved) {
-                            console.log(`[SeriesMetro] Resolved ${serverName} → ${resolved.substring(0, 60)}...`);
-                            streams.push({
-                                name: "SeriesMetro",
-                                title: `${serverName} (${lang})`,
-                                url: resolved,
-                                quality: 'HD',
-                                headers: { "Referer": realUrl }
-                            });
-                            continue;
-                        }
-                        
+                if (realUrl.includes('fastream.to')) {
+                    const direct = await resolveFastream(realUrl);
+                    if (direct) {
                         streams.push({
                             name: "SeriesMetro",
-                            title: `${serverName} (${lang})`,
-                            url: realUrl,
-                            isEmbed: true
+                            title: serverName + ' (' + lang + ')',
+                            url: direct,
+                            quality: 'HD',
+                            headers: { "Referer": "https://fastream.to/" }
                         });
+                        continue;
                     }
-                } catch(e) {
-                    console.log(`[SeriesMetro] Proxy fetch error: ${e.message}`);
                 }
+
+                const resolved = await resolveEmbed(realUrl, pageUrl);
+                if (resolved) {
+                    console.log('[SeriesMetro] Resolved ' + serverName + ' \u2192 ' + resolved.substring(0, 60) + '...');
+                    streams.push({
+                        name: "SeriesMetro",
+                        title: serverName + ' (' + lang + ')',
+                        url: resolved,
+                        quality: 'HD',
+                        headers: { "Referer": realUrl }
+                    });
+                    continue;
+                }
+                
+                streams.push({
+                    name: "SeriesMetro",
+                    title: serverName + ' (' + lang + ')',
+                    url: realUrl,
+                    isEmbed: true
+                });
+            } catch(e) {
+                console.log('[SeriesMetro] Proxy fetch error: ' + e.message);
             }
         }
         
         return streams;
     } catch (e) {
-        console.log(`[SeriesMetro] Extract Error: ${e.message}`);
+        console.log('[SeriesMetro] Extract Error: ' + e.message);
         return [];
     }
 }
