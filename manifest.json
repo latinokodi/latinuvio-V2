@@ -138,29 +138,6 @@
       "supportsExternalPlayer": true
     },
     {
-      "id": "seriesmetro",
-      "name": "SeriesMetro",
-      "description": "Especialista en series y películas (Latino) con servidores Fastream",
-      "version": "2.4.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/seriesmetro.js",
-      "enabled": true,
-      "logo": "https://www3.seriesmetro.net/wp-content/uploads/2024/04/cropped-Favicon2-180x180.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "fuegocine",
       "name": "FuegoCine",
       "description": "Películas y series con enlaces directos y alta velocidad.",
