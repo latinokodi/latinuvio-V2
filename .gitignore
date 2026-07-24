@@ -6,6 +6,7 @@ node_modules/
 
 # Test suite (heavy — run locally, not in repo)
 test/
+test_resources/
 
 # Reference apps (not part of provider pack)
 NuvioMobile/

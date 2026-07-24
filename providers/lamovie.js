@@ -1,6 +1,6 @@
 // src/lamovie/index.js (v2.4.0 - Cache Buster: 18:29)
 var cheerio = require('cheerio');
-var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
+var { TMDB_API_KEY } = require("./tmdb_config");
 var BASE_URL = "https://lamovie.cc";
 var API_URL = "https://lamovie.cc/wp-api/v1";
 var ANIME_COUNTRIES = ["JP", "CN", "KR"];
@@ -97,105 +97,15 @@ function resolveRelativeUrl(href, base) {
   var basePath = base.substring(0, base.lastIndexOf("/") + 1);
   return basePath + href;
 }
-function voeDecode(ct, luts) {
+var { resolveVoe, resolveStreamwish } = require("./resolvers");
+var b64decode = (function () {
   try {
-    var rawLuts = luts.replace(/^\[|\]$/g, "").split("','").map(function (s) {
-      return s.replace(/^'+|'+$/g, "");
-    });
-    var escapedLuts = rawLuts.map(function (i) {
-      return i.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    });
-    var txt = "";
-    for (var ci = 0; ci < ct.length; ci++) {
-      var x = ct.charCodeAt(ci);
-      if (x > 64 && x < 91) x = (x - 52) % 26 + 65;
-      else if (x > 96 && x < 123) x = (x - 84) % 26 + 97;
-      txt += String.fromCharCode(x);
-    }
-    for (var pi = 0; pi < escapedLuts.length; pi++) txt = txt.replace(new RegExp(escapedLuts[pi], "g"), "_");
-    txt = txt.split("_").join("");
-    var decoded1 = b64decode(txt);
-    if (!decoded1) return null;
-    var step4 = "";
-    for (var si = 0; si < decoded1.length; si++) step4 += String.fromCharCode((decoded1.charCodeAt(si) - 3 + 256) % 256);
-    var revBase64 = step4.split("").reverse().join("");
-    var finalStr = b64decode(revBase64);
-    if (!finalStr) return null;
-    return JSON.parse(finalStr);
+    if (typeof atob !== "undefined") return atob;
+    return function (s) { return Buffer.from(s, "base64").toString("utf8"); };
   } catch (e) {
-    return null;
+    return function (s) { return null; };
   }
-}
-function resolveVoe(embedUrl) {
-  return get(embedUrl, { "Referer": embedUrl }).then(function (data) {
-    if (data.indexOf("window.location.href") !== -1 && data.length < 2000) {
-      var rm = data.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/i);
-      if (rm) return resolveVoe(rm[1]);
-    }
-
-    var jsonMatch = data.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
-    if (jsonMatch) {
-      try {
-        var parsed = JSON.parse(jsonMatch[1].trim());
-        var encText = Array.isArray(parsed) ? parsed[0] : parsed;
-        if (typeof encText === "string") {
-          var decoded = encText.replace(/[a-zA-Z]/g, function (c) {
-            var code = c.charCodeAt(0);
-            var limit = c <= "Z" ? 90 : 122;
-            var shifted = code + 13;
-            return String.fromCharCode(limit >= shifted ? shifted : shifted - 26);
-          });
-
-          var noise = ["@$", "^^", "~@", "%?", "*~", "!!", "#&"];
-          for (var i = 0; i < noise.length; i++) {
-            decoded = decoded.split(noise[i]).join("");
-          }
-
-          var b64_1 = b64decode(decoded);
-          if (b64_1) {
-            var shiftedStr = "";
-            for (var j = 0; j < b64_1.length; j++) {
-              shiftedStr += String.fromCharCode(b64_1.charCodeAt(j) - 3);
-            }
-            var reversed = shiftedStr.split("").reverse().join("");
-            var decrypted = b64decode(reversed);
-            if (decrypted) {
-              var finalData = JSON.parse(decrypted);
-              if (finalData && (finalData.source || finalData.direct_access_url)) {
-                return {
-                  url: finalData.source || finalData.direct_access_url,
-                  quality: "1080p",
-                  verified: true,
-                  headers: { "Referer": embedUrl, "User-Agent": DEFAULT_HEADERS["User-Agent"] }
-                };
-              }
-            }
-          }
-        }
-      } catch (ex) { console.log("[VOE] Decrypt error: " + ex.message); }
-    }
-
-    var re = /(?:mp4|hls)['"\s]*:\s*['"]([^'"]+)['"]/gi;
-    var m;
-    while ((m = re.exec(data)) !== null) {
-      var candidate = m[1];
-      if (!candidate) continue;
-      var url = candidate;
-      if (url.indexOf("aHR0") === 0) {
-        try {
-          url = b64decode(url);
-        } catch (e) {
-        }
-      }
-      return { url, quality: "1080p", verified: true, headers: { "Referer": embedUrl } };
-    }
-    return null;
-  }).catch(function (err) {
-    console.log("[VOE] Error: " + err.message);
-    return null;
-  });
-}
-var HLSWISH_DOMAIN_MAP = { "hglink.to": "vibuxer.com" };
+})();
 function unpackEval(payload, radix, symtab) {
   var chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   return payload.replace(/\b([0-9a-zA-Z]+)\b/g, function (match) {
@@ -207,44 +117,6 @@ function unpackEval(payload, radix, symtab) {
     }
     if (isNaN(result) || result >= symtab.length) return match;
     return symtab[result] && symtab[result] !== "" ? symtab[result] : match;
-  });
-}
-function resolveHlswish(embedUrl) {
-  var fetchUrl = embedUrl;
-  var keys = Object.keys(HLSWISH_DOMAIN_MAP);
-  for (var ki = 0; ki < keys.length; ki++) {
-    if (fetchUrl.indexOf(keys[ki]) !== -1) fetchUrl = fetchUrl.replace(keys[ki], HLSWISH_DOMAIN_MAP[keys[ki]]);
-  }
-  var embedHostMatch = fetchUrl.match(/^(https?:\/\/[^/]+)/);
-  var embedHost = embedHostMatch ? embedHostMatch[1] : "https://hlswish.com";
-  return get(fetchUrl, {
-    "Referer": "https://embed69.org/",
-    "Origin": "https://embed69.org",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "es-MX,es;q=0.9"
-  }).then(function (data) {
-    var fileMatch = data.match(/file\s*:\s*["']([^"']+)["']/i);
-    if (fileMatch) {
-      var url = fileMatch[1];
-      if (url.charAt(0) === "/") url = embedHost + url;
-      return { url, quality: "1080p", verified: true, headers: { "User-Agent": DEFAULT_HEADERS["User-Agent"], "Referer": embedHost + "/" } };
-    }
-    var packMatch = data.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[^}]+\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
-    if (packMatch) {
-      var unpacked = unpackEval(packMatch[1], parseInt(packMatch[2]), packMatch[4].split("|"));
-      var m3u8Match = unpacked.match(/["']([^"']{30,}\.m3u8[^"']*)['"]/);
-      if (m3u8Match) {
-        var url = m3u8Match[1];
-        if (url.charAt(0) === "/") url = embedHost + url;
-        return { url, quality: "1080p", verified: true, headers: { "User-Agent": DEFAULT_HEADERS["User-Agent"], "Referer": embedHost + "/" } };
-      }
-    }
-    var rawM3u8 = data.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
-    if (rawM3u8) return { url: rawM3u8[0], quality: "1080p", verified: true, headers: { "User-Agent": DEFAULT_HEADERS["User-Agent"], "Referer": embedHost + "/" } };
-    return null;
-  }).catch(function (err) {
-    console.log("[HLSWish] Error: " + err.message);
-    return null;
   });
 }
 function resolveLacloud(embedUrl) {
@@ -347,8 +219,8 @@ function resolveDoodstream(embedUrl) {
   });
 }
 function getResolver(url) {
-  if (url.indexOf("hlswish") !== -1 || url.indexOf("streamwish") !== -1 || url.indexOf("strwish") !== -1 || url.indexOf("vibuxer") !== -1) return resolveHlswish;
-  if (url.indexOf("voe.sx") !== -1) return resolveVoe;
+  if (url.indexOf("hlswish") !== -1 || url.indexOf("streamwish") !== -1 || url.indexOf("strwish") !== -1 || url.indexOf("vibuxer") !== -1) return function(u) { return resolveStreamwish(u); };
+  if (url.indexOf("voe.sx") !== -1) return function(u) { return resolveVoe(u); };
   if (url.indexOf("vimeos.net") !== -1) return resolveVimeos;
   if (url.indexOf("lacloud.live") !== -1) return resolveLacloud;
   if (url.indexOf("earnvids.com") !== -1 || url.indexOf("hglink.to") !== -1 || url.indexOf("earnl.one") !== -1 || url.indexOf("vidnova.online") !== -1 || url.indexOf("streamfort.online") !== -1) return resolvePacker;
@@ -367,8 +239,16 @@ function getServerName(url) {
 }
 function getTmdbInfo(tmdbId, mediaType) {
   var type = mediaType === "movie" ? "movie" : "tv";
-  var url = "https://api.themoviedb.org/3/" + type + "/" + tmdbId + "?api_key=" + TMDB_API_KEY + "&language=es-MX";
+  var isImdb = String(tmdbId).startsWith("tt");
+  var url = isImdb
+    ? "https://api.themoviedb.org/3/find/" + tmdbId + "?api_key=" + TMDB_API_KEY + "&external_source=imdb_id&language=es-MX"
+    : "https://api.themoviedb.org/3/" + type + "/" + tmdbId + "?api_key=" + TMDB_API_KEY + "&language=es-MX";
+  console.log("[LaMovie] TMDB " + (isImdb ? "/find/" : "/" + type + "/") + tmdbId + "&language=es-MX");
   return get(url).then(function (data) {
+    if (isImdb) {
+      data = type === "movie" ? data.movie_results && data.movie_results[0] : data.tv_results && data.tv_results[0] || data.movie_results && data.movie_results[0];
+      if (!data) return null;
+    }
     var title = type === "movie" ? data.title || data.original_title : data.name || data.original_name;
     var originalTitle = type === "movie" ? data.original_title || data.title : data.original_name || data.name;
     var year = (type === "movie" ? data.release_date || "" : data.first_air_date || "").slice(0, 4);

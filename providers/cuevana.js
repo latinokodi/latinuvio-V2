@@ -2,6 +2,7 @@
  * cuevana_unbuendato - Built from src/cuevana_unbuendato/
  * Generated: 2026-05-05T21:05:01.144Z
  */
+require("./utils/log_sanitizer");
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __defProps = Object.defineProperties;

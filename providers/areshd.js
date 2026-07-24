@@ -5,7 +5,7 @@
  * Resolver implementations adapted from nuvio-providers-latino-v2.
  */
 
-const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
+const { TMDB_API_KEY } = require("./tmdb_config");
 const BASE_URL = "https://areshd.com";
 
 // Chrome UA pool — matches reference providers

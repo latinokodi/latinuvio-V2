@@ -2721,7 +2721,7 @@ var require_resolvers = __commonJS({
 var require_tmdb = __commonJS({
   "src/utils/tmdb.js"(exports2, module2) {
     var axios3 = require("axios");
-    var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
+    var { TMDB_API_KEY } = require("./tmdb_config");
     var titleCache = /* @__PURE__ */ new Map();
     function getTmdbTitle2(tmdbId, mediaType, language = "en-US", retries = 2) {
       return __async(this, null, function* () {

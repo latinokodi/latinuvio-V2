@@ -1,4 +1,4 @@
-const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
+const { TMDB_API_KEY } = require("./tmdb_config");
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 const HEADERS = {
@@ -88,6 +88,12 @@ async function resolveEmbed(url, referer) {
             return await resolveUnpackEval(url, referer);
         } catch (e) {}
     }
+    // Fallback: shared resolvers (Filemoon, OkRu, VidHide, StreamWish, etc.)
+    try {
+        const { resolveEmbed: sharedResolve } = require("./resolvers");
+        const result = await sharedResolve(url);
+        if (result && result.url) return result.url;
+    } catch (_) {}
     return await resolveUnpackEval(url, referer);
 }
 
