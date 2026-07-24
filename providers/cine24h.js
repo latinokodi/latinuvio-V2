@@ -1,4 +1,4 @@
-const { TMDB_API_KEY } = require("./tmdb_config");
+const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const BASE_URL = "https://cine24h.online/";
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -32,21 +32,11 @@ function decodePacker(packed) {
 
 async function getTMDBInfo(id, type) {
     try {
-        const cleanId = String(id).startsWith("tt") ? id : id;
-        const isImdb = String(cleanId).startsWith("tt");
-        const url = isImdb
-            ? `https://api.themoviedb.org/3/find/${cleanId}?api_key=${TMDB_API_KEY}&external_source=imdb_id&language=es-MX`
-            : `https://api.themoviedb.org/3/${type}/${cleanId}?api_key=${TMDB_API_KEY}&language=es-MX`;
-        console.log(`[Cine24h] TMDB ${isImdb ? "/find/" : `/${type}/`}${cleanId}&language=es-MX`);
+        const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=es-MX`;
         const res = await fetch(url, { headers: HEADERS }).then(r => r.json());
-        let data = res;
-        if (isImdb) {
-            data = type === "movie" ? res.movie_results?.[0] : res.tv_results?.[0] || res.movie_results?.[0];
-            if (!data) return null;
-        }
         return {
-            title: type === "movie" ? data.title : data.name,
-            year: (data.release_date || data.first_air_date || "").substring(0, 4)
+            title: type === "movie" ? res.title : res.name,
+            year: (res.release_date || res.first_air_date || "").substring(0, 4)
         };
     } catch (e) {
         console.log(`[Cine24h] TMDB Error: ${e.message}`);

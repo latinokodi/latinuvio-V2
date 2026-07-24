@@ -8,7 +8,7 @@
 
 const CryptoJS = require("crypto-js");
 
-const { TMDB_API_KEY } = require("./tmdb_config");
+const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const HOST = "https://peliculasflix.co/";
 const API_URL = "https://fluxcedene.net/api/gql";
 const ACCESS_PLATFORM = "lDakkGUZx7_nX25Nv1CJVbz_ZAjMKMTcwNTQyMzU4Nw==";

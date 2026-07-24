@@ -172,7 +172,7 @@ var require_http = __commonJS({
 var require_id_mapper = __commonJS({
   "src/utils/id_mapper.js"(exports2, module2) {
     var { fetchJson, fetchHtml } = require_http();
-    var { TMDB_API_KEY } = require("./tmdb_config");
+    var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
     var ID_CACHE = /* @__PURE__ */ new Map();
     var SERIES_MAPPINGS = {
       // Ejemplo: 'tmdb_id': 'imdb_id'

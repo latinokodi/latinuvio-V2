@@ -18,7 +18,7 @@
 const CryptoJS = require("crypto-js");
 const nodeCrypto = require("crypto");
 
-const { TMDB_API_KEY } = require("./tmdb_config");
+const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const HOST        = "https://entrepeliculasyseries.nz";
 const USER_AGENT  = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -63,19 +63,12 @@ async function getTMDBInfo(id, type) {
     const titles = new Set();
     let year = "";
     let imdbId = "";
-    const isImdb = String(id).startsWith("tt");
     const languages = ["es-MX", "es-ES", "en-US"];
 
     for (const lang of languages) {
         try {
-            const url = isImdb
-                ? `https://api.themoviedb.org/3/find/${id}?api_key=${TMDB_API_KEY}&external_source=imdb_id&language=${lang}`
-                : `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=${lang}`;
-            let res = await fetch(url, { headers: { "User-Agent": USER_AGENT } }).then(r => r.json());
-            if (isImdb) {
-                res = type === "movie" ? res.movie_results?.[0] : res.tv_results?.[0] || res.movie_results?.[0];
-                if (!res) continue;
-            }
+            const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=${lang}`;
+            const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } }).then(r => r.json());
             const title = type === "movie" ? res.title : res.name;
             const original = type === "movie" ? res.original_title : res.original_name;
             if (title) titles.add(title);

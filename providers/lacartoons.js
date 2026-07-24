@@ -1,7 +1,7 @@
 const cheerio = require("cheerio");
 const CryptoJS = require("crypto-js");
 
-const { TMDB_API_KEY: TMDB_KEY } = require("./tmdb_config");
+const TMDB_KEY = "439c478a771f35c05022f9feabcca01c";
 const BASE_URL = "https://www.lacartoons.com";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 

@@ -27,11 +27,9 @@ const EMBED_SAFE_PATTERNS = [
     "zilla-networks",  // HLS player
 ];
 
-const { fetchWithTimeout } = require("./utils/fetch_helpers");
-
 async function fetchText(url, headers = HTML_HEADERS_RESOLVER) {
     try {
-        const resp = await fetchWithTimeout(url, { headers }, 15000);
+        const resp = await fetch(url, { headers });
         if (resp.status === 404) return "DEAD";
         const text = await resp.text();
         const lower = text.toLowerCase();
@@ -47,7 +45,31 @@ async function fetchText(url, headers = HTML_HEADERS_RESOLVER) {
     } catch (e) { return null; }
 }
 
-const { normalizeExtractedUrl, findFirstUrl, isLikelyVideoUrl, getServerTitle } = require("./utils/stream_helpers");
+function normalizeExtractedUrl(value) {
+    if (!value || typeof value !== "string") return null;
+    return value.replace(/\\u0026/g, "&").replace(/\\\//g, "/").replace(/&amp;/g, "&")
+        .replace(/%3A/gi, ":").replace(/%2F/gi, "/").replace(/%3F/gi, "?").replace(/%3D/gi, "=").trim();
+}
+
+function findFirstUrl(payload, patterns) {
+    if (!payload || typeof payload !== "string") return null;
+    for (const pattern of patterns) {
+        try {
+            const match = payload.match(pattern);
+            if (match && match[1]) { const c = normalizeExtractedUrl(match[1]); if (c) return c; }
+        } catch (_e) {}
+    }
+    return null;
+}
+
+function isLikelyVideoUrl(url) {
+    if (!url || typeof url !== "string") return false;
+    const lower = url.toLowerCase();
+    for (const p of ["cloudflareinsights","google-analytics","googletagmanager","facebook.net","beacon.min.js",".js?","analytics","pixel","bigbuckbunny","test-videos","sample-video","placeholder"]) {
+        if (lower.includes(p)) return false;
+    }
+    return /\.(mp4|m3u8)$/i.test(url) || lower.includes("video") || lower.includes("stream") || lower.includes(".mp4") || lower.includes(".m3u8");
+}
 
 async function resolveUrl(serverName, embedUrl) {
     if (!embedUrl) return null;
@@ -140,7 +162,7 @@ async function resolveUrl(serverName, embedUrl) {
     return resolved;
 }
 
-const { TMDB_API_KEY: TMDB_KEY } = require("./tmdb_config");
+const TMDB_KEY = "439c478a771f35c05022f9feabcca01c";
 const BASE_URL = "https://animeav1.com";
 
 const HEADERS = {

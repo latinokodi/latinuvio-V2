@@ -1,16 +1,243 @@
 const cheerio = require('cheerio');
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const { TMDB_API_KEY: TMDB_KEY } = require("./tmdb_config");
-const { resolveEmbed: resolveShared, resolveVoe, resolveStreamwish, resolveVidhide, resolveFilemoon } = require("./resolvers");
+const TMDB_KEY = "439c478a771f35c05022f9feabcca01c";
 
-// ─── Cvid resolver (cinemitas-specific) ──────────────────────────────────────
+// Helper functions for resolvers
+function q(e, n, t) {
+  let u = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ", r = (l) => {
+    let a = 0;
+    for (let i = 0; i < l.length; i++) {
+      let s = u.indexOf(l[i]);
+      if (s === -1)
+        return NaN;
+      a = a * n + s;
+    }
+    return a;
+  };
+  return e.replace(/\b([0-9a-zA-Z]+)\b/g, (l) => {
+    let a = r(l);
+    return isNaN(a) || a >= t.length ? l : t[a] && t[a] !== "" ? t[a] : l;
+  });
+}
+
+function X(e, n) {
+  let t = e.match(/\{[^{}]*"hls[234]"\s*:\s*"([^"]+)"[^{}]*\}/);
+  if (t)
+    try {
+      let r = t[0].replace(/(\w+)\s*:/g, '"$1":'), l = JSON.parse(r), a = l.hls4 || l.hls3 || l.hls2;
+      if (a)
+        return a.startsWith("/") ? n + a : a;
+    } catch (r) {
+      let l = t[0].match(/"hls[234]"\s*:\s*"([^"]+\.m3u8[^"]*)"/);
+      if (l) {
+        let a = l[1];
+        return a.startsWith("/") ? n + a : a;
+      }
+    }
+  let u = e.match(/["']([^"']{30,}\.m3u8[^"']*)['"]/i);
+  if (u) {
+    let r = u[1];
+    return r.startsWith("/") ? n + r : r;
+  }
+  return null;
+}
+
+function L(e) {
+  try {
+    return typeof atob != "undefined" ? atob(e) : Buffer.from(e, "base64").toString("utf8");
+  } catch (n) {
+    return null;
+  }
+}
+
+function B(e, n) {
+  try {
+    let u = n.replace(/^\[|\]$/g, "").split("','").map((o) => o.replace(/^'+|'+$/g, "")).map((o) => o.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), r = "";
+    for (let o of e) {
+      let c = o.charCodeAt(0);
+      c > 64 && c < 91 ? c = (c - 52) % 26 + 65 : c > 96 && c < 123 && (c = (c - 84) % 26 + 97), r += String.fromCharCode(c);
+    }
+    for (let o of u)
+      r = r.replace(new RegExp(o, "g"), "_");
+    r = r.split("_").join("");
+    let l = L(r);
+    if (!l)
+      return null;
+    let a = "";
+    for (let o = 0; o < l.length; o++)
+      a += String.fromCharCode((l.charCodeAt(o) - 3 + 256) % 256);
+    let i = a.split("").reverse().join(""), s = L(i);
+    return s ? JSON.parse(s) : null;
+  } catch (t) {
+    return console.log("[VOE] voeDecode error:", t.message), null;
+  }
+}
+
+function C(e) {
+  try {
+    let n = e.match(/eval\(function\(p,a,c,k,e,[rd]\)\{.*?\}\s*\('([\s\S]*?)',\s*(\d+),\s*(\d+),\s*'([\s\S]*?)'\.split\('\|'\)/);
+    if (!n)
+      return null;
+    let [, t, u, r, l] = n;
+    u = parseInt(u), r = parseInt(r), l = l.split("|");
+    let a = (i, s) => {
+      let o = "0123456789abcdefghijklmnopqrstuvwxyz", c = "";
+      for (; i > 0; )
+        c = o[i % s] + c, i = Math.floor(i / s);
+      return c || "0";
+    };
+    return t = t.replace(/\b\w+\b/g, (i) => {
+      let s = parseInt(i, 36);
+      return s < l.length && l[s] ? l[s] : a(s, u);
+    }), t;
+  } catch (n) {
+    return null;
+  }
+}
+
+// Resolvers
+async function resolveStreamwish(embedUrl) {
+    try {
+        let u = embedUrl.match(/^(https?:\/\/[^/]+)/)[1];
+        console.log(`[StreamWish] Resolviendo: ${embedUrl}`);
+        let r = await fetch(embedUrl, { headers: { "User-Agent": UA, "Referer": "https://cinemitas.org/" } });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        let l = await r.text();
+        
+        // Skip Vite SPA embeds - these require browser JS execution to load sources
+        if (l.includes('id="root"') && l.includes('__vite_is_modern_browser')) {
+            console.log(`[StreamWish] Skipping SPA embed (requires browser): ${embedUrl}`);
+            return null;
+        }
+        
+        let a = l.match(/file\s*:\s*["']([^"']+)["']/i);
+        if (a) {
+            let o = a[1];
+            if (o.startsWith("/")) o = u + o;
+            return { url: o, server: "StreamWish", quality: "1080p", headers: { "User-Agent": UA, Referer: u + "/" } };
+        }
+        let i = l.match(/eval\(function\(p,a,c,k,e,[a-z]\)\{[^}]+\}\s*\('([\s\S]+?)',\s*(\d+),\s*(\d+),\s*'([\s\S]+?)'\.split\('\|'\)/);
+        if (i) {
+            let o = q(i[1], parseInt(i[2]), i[4].split("|"));
+            let c = X(o, u);
+            if (c) return { url: c, server: "StreamWish", quality: "1080p", headers: { "User-Agent": UA, Referer: u + "/" } };
+            // Also try direct m3u8 from unpacked code
+            let m3 = o.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+            if (m3) return { url: m3[0], server: "StreamWish", quality: "1080p", headers: { "User-Agent": UA, Referer: u + "/" } };
+        }
+        let s = l.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+        if (s) {
+            return { url: s[0], server: "StreamWish", quality: "1080p", headers: { "User-Agent": UA, Referer: u + "/" } };
+        }
+    } catch (t) {
+        console.log(`[StreamWish] Error: ${t.message}`);
+    }
+    return null;
+}
+
+async function resolveVoe(embedUrl) {
+    try {
+        console.log(`[VOE] Resolviendo: ${embedUrl}`);
+        let n = await fetch(embedUrl, { headers: { "User-Agent": UA, Referer: embedUrl } });
+        if (!n.ok) throw new Error(`HTTP ${n.status}`);
+        let t = await n.text();
+        if (/permanentToken/i.test(t)) {
+            let s = t.match(/window\.location\.href\s*=\s*'([^']+)'/i);
+            if (s) {
+                let o = await fetch(s[1], { headers: { "User-Agent": UA, Referer: embedUrl } });
+                if (o.ok) t = await o.text();
+            }
+        }
+        let u = t.match(/json">\s*\[\s*['"]([^'"]+)['"]\s*\]\s*<\/script>\s*<script[^>]*src=['"]([^'"]+)['"]/i);
+        if (u) {
+            let s = u[1], o = u[2].startsWith("http") ? u[2] : new URL(u[2], embedUrl).href;
+            let c = await fetch(o, { headers: { "User-Agent": UA, Referer: embedUrl } });
+            let p = c.ok ? await c.text() : "";
+            let d = p.match(/(\[(?:'[^']{1,10}'[\s,]*){4,12}\])/i) || p.match(/(\[(?:"[^"]{1,10}"[,\s]*){4,12}\])/i);
+            if (d) {
+                let h = B(s, d[1]);
+                if (h && (h.source || h.direct_access_url)) {
+                    let g = h.source || h.direct_access_url;
+                    return { url: g, server: "VOE", quality: "1080p", headers: { Referer: embedUrl } };
+                }
+            }
+        }
+        let r = /(?:mp4|hls)'\s*:\s*'([^']+)'/gi, l = /(?:mp4|hls)"\s*:\s*"([^"]+)"/gi, a = [], i;
+        while ((i = r.exec(t)) !== null) a.push(i);
+        while ((i = l.exec(t)) !== null) a.push(i);
+        for (let s of a) {
+            let o = s[1];
+            if (!o) continue;
+            let c = o;
+            if (c.startsWith("aHR0")) {
+                try { c = L(c); } catch (p) {}
+            }
+            return { url: c, server: "VOE", quality: "720p", headers: { Referer: embedUrl } };
+        }
+    } catch (n) {
+        console.log(`[VOE] Error: ${n.message}`);
+    }
+    return null;
+}
+
+async function resolveVidhide(embedUrl) {
+    try {
+        console.log(`[VidHide] Resolviendo: ${embedUrl}`);
+        let t = await fetch(embedUrl, { method: "GET", headers: { "User-Agent": UA, Referer: "https://cinemitas.org/" } });
+        if (!t.ok) throw new Error(`HTTP ${t.status}`);
+        let text = await t.text();
+        let r = text.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+        if (!r) {
+            let m3 = text.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+            if (m3) return { url: m3[0], server: "VidHide", quality: "720p", headers: { Referer: embedUrl } };
+            return null;
+        }
+        let l = C(r[0]);
+        if (!l) return null;
+        let a = l.match(/"hls4"\s*:\s*"([^"]+)"/), i = l.match(/"hls2"\s*:\s*"([^"]+)"/), s = a || i;
+        if (!s) return null;
+        let o = s[1];
+        if (!o.startsWith("http")) {
+            o = `${new URL(embedUrl).origin}${o}`;
+        }
+        let c = new URL(embedUrl).origin;
+        return { url: o, server: "VidHide", quality: "1080p", headers: { "User-Agent": UA, Referer: `${c}/`, Origin: c } };
+    } catch (t) {
+        console.log(`[VidHide] Error: ${t.message}`);
+    }
+    return null;
+}
+
+async function resolveFilemoon(embedUrl) {
+    try {
+        console.log(`[FileMoon] Resolviendo: ${embedUrl}`);
+        let res = await fetch(embedUrl, { headers: { "User-Agent": UA, Referer: "https://cinemitas.org/" } });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        let text = await res.text();
+        let evalMatch = text.match(/eval\(function\(p,a,c,k,e,[rd]\)[\s\S]*?\.split\('\|'\)[^\)]*\)\)/);
+        if (evalMatch) {
+            let unpacked = C(evalMatch[0]);
+            if (unpacked) {
+                let m3 = unpacked.match(/https?:\/\/[^"'\s\\]+\.m3u8[^"'\s\\]*/i);
+                if (m3) return { url: m3[0], server: "FileMoon", quality: "1080p", headers: { "User-Agent": UA, Referer: embedUrl } };
+            }
+        }
+        let m3 = text.match(/https?:\/\/[^"'\s]+\.m3u8[^"'\s]*/i);
+        if (m3) {
+            return { url: m3[0], server: "FileMoon", quality: "720p", headers: { "User-Agent": UA, Referer: embedUrl } };
+        }
+    } catch (err) {
+        console.log(`[FileMoon] Error: ${err.message}`);
+    }
+    return null;
+}
 
 async function resolveCvid(embedUrl) {
     try {
         // Convert /f/ wrapper URL to /e/ actual player URL
         const playerUrl = embedUrl.replace(/\/f\//, '/e/');
-        console.log(`[Cvid] Resolving: ${playerUrl}`);
+        console.log(`[Cvid] Resolviendo: ${playerUrl}`);
         const r = await fetch(playerUrl, {
             headers: { "User-Agent": UA, "Referer": "https://cinemitas.org/" }
         });
@@ -30,18 +257,24 @@ async function resolveCvid(embedUrl) {
     return null;
 }
 
-// ─── Embed dispatcher ────────────────────────────────────────────────────────
-
 async function resolveEmbed(embedUrl) {
     const u = embedUrl.toLowerCase();
-
-    // Shared resolvers
-    const shared = await resolveShared(embedUrl);
-    if (shared) return shared;
-
-    // Cinemitas-specific resolvers
-    if (u.includes("cvid.lat")) return resolveCvid(embedUrl);
-
+    
+    if (u.includes("voe.sx") || u.includes("/voe/")) {
+        return resolveVoe(embedUrl);
+    }
+    if (u.includes("wish") || u.includes("bysezoxexe") || u.includes("vibuxer") || u.includes("hglink") || u.includes("hanerix")) {
+        return resolveStreamwish(embedUrl);
+    }
+    if (u.includes("vidhide") || u.includes("ds2play") || u.includes("do7go") || u.includes("dintezuvio")) {
+        return resolveVidhide(embedUrl);
+    }
+    if (u.includes("filemoon") || u.includes("fmoon")) {
+        return resolveFilemoon(embedUrl);
+    }
+    if (u.includes("cvid.lat")) {
+        return resolveCvid(embedUrl);
+    }
     if (u.includes("uqload")) {
         const { resolveUqload } = require("./cdn_resolvers");
         return resolveUqload(embedUrl);
@@ -54,7 +287,8 @@ async function resolveEmbed(embedUrl) {
         const { resolveVimeos } = require("./cdn_resolvers");
         return resolveVimeos(embedUrl);
     }
-
+    
+    console.log(`[Cinemitas] No resolver found for embed: ${embedUrl}`);
     return null;
 }
 
@@ -69,19 +303,7 @@ function slugify(title) {
         .replace(/^-|-$/g, "");
 }
 
-// TMDB cache — deduplicates the 3-language fetch pattern
-const _tmdbCache = new Map();
-const _CACHE_TTL = 5 * 60 * 1000; // 5 min
-
 async function getTmdbTitles(tmdbId, type) {
-    // Check cache first
-    const cacheKey = `${tmdbId}|${type}`;
-    const cached = _tmdbCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < _CACHE_TTL) {
-        console.log(`[Cinemitas] TMDB CACHED ${type}/${tmdbId}`);
-        return cached.data;
-    }
-
     let titleEs = null;
     let titleOriginal = null;
     let titleEn = null;
@@ -116,9 +338,7 @@ async function getTmdbTitles(tmdbId, type) {
         console.error("[Cinemitas] TMDB en-US error:", e.message);
     }
     
-    const result = { titleEs, titleOriginal, titleEn, year };
-    _tmdbCache.set(cacheKey, { data: result, ts: Date.now() });
-    return result;
+    return { titleEs, titleOriginal, titleEn, year };
 }
 
 async function getStreams(tmdbId, mediaType, season, episode, title) {

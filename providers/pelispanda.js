@@ -2538,12 +2538,11 @@ var require_extractor = __commonJS({
     var { resolveEmbed } = require_resolvers();
     var { validateStream } = require_m3u8();
     var { fetchJson, getSessionUA } = require_http();
-    var { TMDB_API_KEY } = require("./tmdb_config");
     function getFallbackTitle(tmdbId, mediaType) {
       return __async(this, null, function* () {
         try {
           const type = mediaType === "movie" ? "movie" : "tv";
-          const apiKey = TMDB_API_KEY;
+          const apiKey = "439c478a771f35c05022f9feabcca01c";
           const url = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${apiKey}&language=es-MX`;
           const data = yield fetchJson(url);
           return data.name || data.title || null;

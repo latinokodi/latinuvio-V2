@@ -1,5 +1,4 @@
 const CryptoJS = require('crypto-js');
-const { TMDB_API_KEY } = require("./tmdb_config");
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 const AES_KEY = CryptoJS.enc.Utf8.parse('kiemtienmua911ca');
@@ -14,7 +13,7 @@ const HOST_SERIES_PATH = {
 
 const MIRRORS = {
     STREAMWISH: ["hlswish", "streamwish", "hglink", "hglamioz", "audinifer",
-                 "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix", "flaswish", "sfastwish", "dhcplay", "luluvdoo", "luluvdo", "luluvid", "premilkyway"],
+                 "embedwish", "awish", "dwish", "strwish", "wishembed", "wishfast", "hanerix"],
     VIDHIDE:    ["vidhide", "minochinos", "vadisov", "vaiditv", "amusemre",
                  "callistanise", "vhaudm", "mdfury", "dintezuvio", "acek-cdn",
                  "vedonm", "vidhidepro", "vidhidevip", "masukestin", "filelions"],
@@ -564,19 +563,17 @@ async function resolveWaaw(embedUrl) {
 
 // ─── Embed URL router ─────────────────────────────────────────────────────────
 
-const { resolveEmbed: resolveSharedEmbed } = require("./resolvers");
-
 async function resolveEmbed(embedUrl) {
-    const u = embedUrl.toLowerCase();
     if (isMirror(embedUrl, "STREAMWISH")) return resolveStreamwish(embedUrl);
     if (isMirror(embedUrl, "VIDHIDE"))    return resolveVidhide(embedUrl);
     if (isMirror(embedUrl, "FILEMOON"))   return resolveFilemoon(embedUrl);
     if (isMirror(embedUrl, "VOE"))        return resolveVoe(embedUrl);
     if (isMirror(embedUrl, "DOODSTREAM")) return resolveDoodstream(embedUrl);
     if (isMirror(embedUrl, "STREAMTAPE")) return resolveStreamtape(embedUrl);
+    const u = embedUrl.toLowerCase();
     if (u.includes("waaw.to") || u.includes("netu.tv")) return resolveWaaw(embedUrl);
-    // Fallback to shared resolvers (OkRu, etc.)
-    return resolveSharedEmbed(embedUrl);
+    console.log(`[AresHD] No resolver for: ${embedUrl}`);
+    return null;
 }
 
 
@@ -620,7 +617,7 @@ async function getStreams(tmdbId, mediaType, season, episode, title, host) {
     let targetTitle = title;
     if (!targetTitle) {
         try {
-            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=${TMDB_API_KEY}&language=es-MX`).then(r => r.json());
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/${mediaType}/${tmdbId}?api_key=439c478a771f35c05022f9feabcca01c&language=es-MX`).then(r => r.json());
             targetTitle = mediaType === "movie" ? tmdbRes.title : tmdbRes.name;
         } catch (e) {
             console.error("[VitaminagG] TMDB lookup failed:", e.message);
@@ -738,17 +735,12 @@ async function getStreams(tmdbId, mediaType, season, episode, title, host) {
                 if (!videoHash) {
                     console.log(`[VitaminagG] No video hash in data-src for ${opt}, treating as direct embed: ${videoBackendUrlRaw}`);
                     if (videoBackendUrlRaw.startsWith("http")) {
-                        // Try to resolve embed → direct stream
-                        const resolved = await resolveEmbed(videoBackendUrlRaw);
-                        const finalUrl = resolved ? resolved.url : videoBackendUrlRaw;
-                        const finalQuality = resolved ? resolved.quality : "1080p";
-                        const finalServer = resolved ? resolved.server : "Direct";
                         streams.push({
                             provider: "VitaminagG",
-                            title: `${title} \xB7 ${finalServer}`,
-                            url: finalUrl,
-                            quality: finalQuality,
-                            headers: resolved ? resolved.headers : {
+                            title: `${title} \xB7 ${opt.replace('opcion', 'Opción')}`,
+                            url: videoBackendUrlRaw,
+                            quality: "1080p",
+                            headers: {
                                 "User-Agent": UA,
                                 "Referer": pageUrl
                             }
