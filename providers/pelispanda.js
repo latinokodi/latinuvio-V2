@@ -2559,6 +2559,11 @@ var require_extractor = __commonJS({
           if (!searchTitle || searchTitle === tmdbId) {
             searchTitle = yield getFallbackTitle(tmdbId, mediaType);
           }
+          // Always try TMDB Spanish title — the API only returns results for Spanish titles
+          const tmdbTitle = yield getFallbackTitle(tmdbId, mediaType);
+          if (tmdbTitle && tmdbTitle !== searchTitle) {
+            searchTitle = tmdbTitle;
+          }
           if (!searchTitle) {
             console.log("[PelisPanda] Fall\xF3 obtenci\xF3n de t\xEDtulo.");
             return [];

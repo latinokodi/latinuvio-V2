@@ -754,115 +754,80 @@ var require_voe = __commonJS({
   "src/resolvers/voe.js"(exports2, module2) {
     var { getSessionUA } = require_http();
     var { validateStream } = require_m3u8();
-    function localAtob2(input) {
-      if (!input)
-        return "";
-      const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-      let str = String(input).replace(/=+$/, "").replace(/[\s\n\r\t]/g, "");
-      let output = "";
-      if (str.length % 4 === 1)
-        return "";
-      for (let bc = 0, bs, buffer, idx = 0; buffer = str.charAt(idx++); ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer, bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0) {
-        buffer = chars.indexOf(buffer);
-      }
-      return output;
+    function stdAtob(input) {
+      if (!input) return "";
+      try { return Buffer.from(input, "base64").toString("utf-8"); }
+      catch (e) { try { return atob(input); } catch (e2) { return ""; } }
     }
     function resolve(url, signal = null) {
       return __async(this, null, function* () {
         try {
-          const currentUA = getSessionUA();
-          console.log(`[VOE] TV-Resolving: ${url}`);
-          const response = yield fetch(url, {
-            headers: { "User-Agent": currentUA },
-            signal
-          });
-          if (!response.ok)
-            return null;
-          const html = yield response.text();
-          if (html.includes("window.location.href") && html.length < 2e3) {
-            const rm = html.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/i);
-            if (rm)
-              return resolve(rm[1]);
+          const ua = getSessionUA();
+          console.log("[VOE] LUT-Resolving: " + url);
+          var resp = yield fetch(url, { headers: { "User-Agent": ua, "Referer": url }, signal: signal });
+          if (!resp.ok) return null;
+          var html = yield resp.text();
+          if (html.indexOf("permanentToken") !== -1) {
+            var rm = html.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/i);
+            if (rm) { resp = yield fetch(rm[1], { headers: { "User-Agent": ua, "Referer": url }, signal: signal }); if (!resp.ok) return null; html = yield resp.text(); url = rm[1]; }
           }
-          const jsonMatch = html.match(/<script type="application\/json">([\s\S]*?)<\/script>/);
-          if (jsonMatch) {
-            try {
-              const parsed = JSON.parse(jsonMatch[1].trim());
-              let encText = Array.isArray(parsed) ? parsed[0] : parsed;
-              if (typeof encText !== "string")
-                return null;
-              let decoded = encText.replace(/[a-zA-Z]/g, (c) => {
-                const code = c.charCodeAt(0);
-                const limit = c <= "Z" ? 90 : 122;
-                const shifted = code + 13;
-                return String.fromCharCode(limit >= shifted ? shifted : shifted - 26);
-              });
-              const noise = ["@$", "^^", "~@", "%?", "*~", "!!", "#&"];
-              for (const n of noise)
-                decoded = decoded.split(n).join("");
-              const b64_1 = localAtob2(decoded);
-              if (!b64_1)
-                throw new Error("LocalAtob failed stage 1");
-              let shiftedStr = "";
-              for (let j = 0; j < b64_1.length; j++) {
-                shiftedStr += String.fromCharCode(b64_1.charCodeAt(j) - 3);
+          var mm = html.match(/json">\s*\[\s*['"]([^'"]+)['"]\s*\]<\/script>\s*<script[^>]*src=['"]([^'"]+)['"]/i);
+          if (mm) {
+            var enc = mm[1], ldr = mm[2];
+            if (!ldr.startsWith("http")) ldr = new URL(ldr, url).href;
+            var jsr = yield fetch(ldr, { headers: { "User-Agent": ua, "Referer": url }, signal: signal });
+            if (jsr.ok) {
+              var jsd = yield jsr.text();
+              var rm2 = jsd.match(/(\[(?:'[^']{1,10}'[\s,]*){4,12}\])/);
+              if (rm2) {
+                var luts = []; try { luts = JSON.parse(rm2[1].replace(/'/g, '"')); } catch(e) {}
+                var txt = "";
+                for (var i = 0; i < enc.length; i++) {
+                  var c = enc.charCodeAt(i);
+                  if (c > 64 && c < 91) txt += String.fromCharCode(((c - 52) % 26) + 65);
+                  else if (c > 96 && c < 123) txt += String.fromCharCode(((c - 84) % 26) + 97);
+                  else txt += enc[i];
+                }
+                for (var p = 0; p < luts.length; p++) txt = txt.split(luts[p]).join("");
+                var d1 = stdAtob(txt);
+                if (d1) {
+                  var s4 = "";
+                  for (var j = 0; j < d1.length; j++) s4 += String.fromCharCode((d1.charCodeAt(j) - 3 + 256) % 256);
+                  var rev = s4.split("").reverse().join("");
+                  var fin = stdAtob(rev);
+                  if (fin) {
+                    try {
+                      var data = JSON.parse(fin);
+                      var vu = data.source || data.direct_access_url;
+                      if (vu) {
+                        console.log("[VOE] LUT Success: " + vu.substring(0, 50) + "...");
+                        var so = { url: vu, headers: { "User-Agent": ua, "Referer": url } };
+                        var val = yield validateStream(so, signal);
+                        return { url: vu, quality: val && val.quality ? val.quality : "1080p", verified: val ? val.verified : true, isReal: val ? val.isReal : false, serverName: "VOE", headers: { "User-Agent": ua, "Referer": url } };
+                      }
+                    } catch(je) { console.error("[VOE] JSON: " + je.message); }
+                  }
+                }
               }
-              const reversed = shiftedStr.split("").reverse().join("");
-              const decrypted = localAtob2(reversed);
-              if (!decrypted)
-                throw new Error("LocalAtob failed stage 2");
-              const data = JSON.parse(decrypted);
-              if (data && data.source) {
-                console.log(`[VOE] Success: ${data.source.substring(0, 50)}...`);
-                const reqHeaders = {
-                  "User-Agent": currentUA,
-                  "Referer": url
-                };
-                const streamObj = { url: data.source, headers: reqHeaders };
-                const validation = yield validateStream(streamObj, signal);
-                const isLive = validation ? validation.verified : true;
-                const streamQuality = validation && validation.quality ? validation.quality : "1080p";
-                return {
-                  url: data.source,
-                  quality: streamQuality,
-                  verified: isLive,
-                  isReal: validation ? validation.isReal : false,
-                  serverName: "VOE",
-                  headers: reqHeaders
-                };
-              }
-            } catch (ex) {
-              console.error(`[VOE] Decryption failed (QuickJS Match): ${ex.message}`);
             }
           }
-          const m3u8Match = html.match(/["'](https?:\/\/[^"']+?\.m3u8[^"']*?)["']/i);
-          if (m3u8Match) {
-            const fallbackUrl = m3u8Match[1];
-            const reqHeaders = {
-              "Referer": url,
-              "User-Agent": currentUA
-            };
-            const streamObj = { url: fallbackUrl, headers: reqHeaders };
-            const validation = yield validateStream(streamObj, signal);
-            const isLive = validation ? validation.verified : true;
-            const streamQuality = validation && validation.quality ? validation.quality : "1080p";
-            return {
-              url: fallbackUrl,
-              quality: streamQuality,
-              verified: isLive,
-              isReal: validation ? validation.isReal : false,
-              serverName: "VOE",
-              headers: reqHeaders
-            };
+          var bm = html.match(/(?:mp4|hls)['"]\s*:\s*['"]([^'"]+)['"]/gi);
+          if (bm) {
+            for (var bi = 0; bi < bm.length; bi++) {
+              var vm = bm[bi].match(/['"]\s*:\s*['"]([^'"]+)['"]/);
+              if (vm) {
+                var cand = vm[1];
+                if (cand.startsWith("aHR0")) { try { var du = stdAtob(cand); if (du && du.startsWith("http")) return { url: du, quality: "HD", verified: true, isReal: false, serverName: "VOE", headers: { "User-Agent": ua, "Referer": url } }; } catch(e) {} }
+                else if (cand.startsWith("http")) return { url: cand, quality: "HD", verified: true, isReal: false, serverName: "VOE", headers: { "User-Agent": ua, "Referer": url } };
+              }
+            }
           }
+          var m3u8m = html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
+          if (m3u8m) { var fu = m3u8m[1].replace(/\\\//g, "/"); return { url: fu, quality: "HD", verified: true, isReal: false, serverName: "VOE", headers: { "User-Agent": ua, "Referer": url } }; }
           return null;
-        } catch (error) {
-          console.error(`[VOE] Error: ${error.message}`);
-          return null;
-        }
+        } catch (e) { console.error("[VOE] Error: " + e.message); return null; }
       });
     }
-    module2.exports = { resolve };
     module2.exports = { resolve };
   }
 });
@@ -1293,6 +1258,10 @@ var { resolve: resolveHlswish } = require_hlswish();
 var { resolve: resolveFilemoon } = require_filemoon();
 var { resolve: resolveVidhide } = require_vidhide();
 var CryptoJS3 = require("crypto-js");
+// Make CryptoJS available globally so the aes_gcm module can find it
+// (it checks typeof CryptoJS !== "undefined" for browser compat)
+if (typeof global !== "undefined" && typeof global.CryptoJS === "undefined") global.CryptoJS = CryptoJS3;
+if (typeof window !== "undefined" && typeof window.CryptoJS === "undefined") window.CryptoJS = CryptoJS3;
 var INDIVIDUAL_TIMEOUT = 1e4;
 var BATCH_SIZE = 20;
 function deriveEmbed69AesKey(html) {
@@ -1345,7 +1314,7 @@ function applyPipingLocal(result) {
   const ua = result.headers && result.headers["User-Agent"] ? result.headers["User-Agent"] : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
   const headers = [
     `User-Agent=${ua}`,
-    `Referer=${result.headers && result.headers.Referer ? result.headers.Referer : "https://embed69.org/"}`
+    `Referer=${result.headers && result.headers.Referer ? result.headers.Referer : "https://sololatino.net/"}`
   ];
   if (result.headers && result.headers.Origin) {
     headers.push(`Origin=${result.headers.Origin}`);
@@ -1439,7 +1408,7 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
       console.log(`[Embed69] Buscando en: ${url}`);
       const response = yield fetch(url, {
         method: "GET",
-        headers: { "User-Agent": currentUA, "Referer": "https://embed69.org/" }
+        headers: { "User-Agent": currentUA, "Referer": "https://sololatino.net/" }
       }).catch(() => null);
       if (!response || !response.ok)
         return [];
@@ -1528,7 +1497,7 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
   });
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { getStreams };
+  module.exports = { getStreams, resolveEmbed: resolveEmbedLocal };
 } else {
   global.Embed69ScraperModule = { getStreams };
 }

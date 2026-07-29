@@ -516,23 +516,6 @@
       "logo": "https://images2.imgbox.com/fc/26/S7f7dn42_o.png"
     },
     {
-      "id": "retrotve",
-      "name": "Colección 2",
-      "description": "Catálogo retro de películas y series de televisión clásicas desde retrotve.com.",
-      "version": "1.1.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/retrotve.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://retrotve.com/favicon.ico"
-    },
-    {
       "id": "animeav1",
       "name": "AnimeAV1",
       "description": "Portal de anime especializado con encode moderno y gran velocidad.",
@@ -582,6 +565,105 @@
         "es"
       ],
       "logo": "https://www3.homecine.to/favicon.ico"
+    },
+    {
+      "id": "pelisyseries",
+      "name": "PelisySeries",
+      "description": "Películas y series con enlaces directos nitroflare y ok.ru. Resuelve a mp4/m3u8.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelisyseries.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
+    },
+    {
+      "id": "monoschinos",
+      "name": "MonosChinos",
+      "description": "Anime en VOSE/Latino con múltiples servidores. Resuelve vía embed69.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/monoschinos.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
+    },
+    {
+      "id": "animejl",
+      "name": "AnimeJL",
+      "description": "Anime en VOSE con servidores voe, vidhide, streamwish. Resuelve vía embed69.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "tv"
+      ],
+      "filename": "providers/animejl.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
+    },
+    {
+      "id": "sololatino",
+      "name": "SoloLatino",
+      "description": "Películas y series en Latino desde sololatino.net. Resuelve vía embed69.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/sololatino.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "logo": "https://sololatino.net/images/logo.png"
+    },
+    {
+      "id": "pelisplushdnz",
+      "name": "PelisPlusHD NZ",
+      "description": "Películas y series desde pelisplushd.bz. Resuelve vía embed69.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/pelisplushdnz.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ]
     }
   ]
 }
