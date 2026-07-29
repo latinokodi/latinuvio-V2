@@ -3,7 +3,7 @@
  * Embeds: voe.sx, vidhide, cdnwish, mp4upload, streamtape, uqload via iframe blocks.
  * Resolves via embed69.
  */
-var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;

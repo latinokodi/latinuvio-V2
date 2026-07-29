@@ -5,7 +5,7 @@
  * embed69 handles: POW challenge, vidhide/streamwish/voe resolution, m3u8 extraction.
  * Falls back to embed69.org/f/<imdb_id> isEmbed if embed69 module unavailable (QuickJS).
  */
-var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
