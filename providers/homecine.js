@@ -1,3 +1,10 @@
+var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
+ var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
+ var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
+ return {name: pn+" - "+q+(r?" ✅":""), title: l+" - "+sr, quality: q, _resWeight:0, _sizeWeight:0};
+};
+
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const BASE_URL = "https://www3.homecine.to";
 

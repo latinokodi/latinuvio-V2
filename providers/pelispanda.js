@@ -73,6 +73,13 @@ var __async = (__this, __arguments, generator) => {
   });
 };
 
+var streamLabels = typeof require !== 'undefined' ? require('./stream_labels.js') : null;
+var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s, pn) {
+  var q = s.quality || 'HD', server = s.serverName || s.serverLabel || s.servername || '';
+  var lang = s.lang || s.language || s.audio || 'Latino', isReal = s.isReal === true;
+  return { name: pn + ' - ' + q + (isReal ? ' ✅' : ''), title: lang + ' - ' + server, quality: q, _resWeight: 0, _sizeWeight: 0 };
+};
+
 // src/utils/ua.js
 var require_ua = __commonJS({
   "src/utils/ua.js"(exports2, module2) {
@@ -2799,9 +2806,10 @@ var require_engine = __commonJS({
           const quality = s.quality || "HD";
           const isReal = s.isReal === true;
           const isVerified = s.verified === true;
-          const checkMark = isReal ? " \u2705" : "";
-          const streamName = `${providerName} - ${quality}${checkMark}`;
-          const streamTitle = `${rawLang} - ${server}`;
+          var labelInfo = buildStreamLabel(s, providerName);
+          const streamName = labelInfo.name;
+          const streamTitle = labelInfo.title;
+          const labelQuality = labelInfo.quality || quality;
           if (seenTitles.has(streamName + streamTitle + s.url))
             continue;
           seenTitles.add(streamName + streamTitle + s.url);
@@ -2809,7 +2817,9 @@ var require_engine = __commonJS({
             name: streamName,
             title: streamTitle,
             url: s.url,
-            quality,
+            quality: labelQuality,
+            _resWeight: labelInfo._resWeight,
+            _sizeWeight: labelInfo._sizeWeight,
             verified: isVerified,
             isReal,
             isDirect: isReal || (s.url && (s.url.includes('.m3u8') || s.url.includes('.mp4'))),

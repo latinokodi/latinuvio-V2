@@ -2,6 +2,12 @@
  * PelisPlusHD — pelisplushd.la
  * Extracts embed URLs from data-url attributes, resolves via embed69.
  */
+var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
+ var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
+ var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
+ return {name: pn+" - "+q+(r?" ✅":""), title: l+" - "+sr, quality: q, _resWeight:0, _sizeWeight:0};
+};
 const { resolveEmbed } = require("./embed69.js");
 const TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
 const HOST = "https://www.pelisplushd.la";

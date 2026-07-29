@@ -5,6 +5,12 @@
  * embed69 handles: POW challenge, vidhide/streamwish/voe resolution, m3u8 extraction.
  * Falls back to embed69.org/f/<imdb_id> isEmbed if embed69 module unavailable (QuickJS).
  */
+var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
+ var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
+ var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
+ return {name: pn+" - "+q+(r?" ✅":""), title: l+" - "+sr, quality: q, _resWeight:0, _sizeWeight:0};
+};
 const BASE_URL = "https://sololatino.net";
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 

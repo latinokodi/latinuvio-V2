@@ -2,6 +2,13 @@
  * vimeus - Built from src/vimeus/
  * Generated: 2026-05-15T01:21:31.380Z
  */
+var streamLabels = typeof require !== "undefined" ? require("./stream_labels.js") : null;
+var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
+ var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
+ var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
+ return {name: pn+" - "+q+(r?" ✅":""), title: l+" - "+sr, quality: q, _resWeight:0, _sizeWeight:0};
+};
+
 var __defProp = Object.defineProperty;
 var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
