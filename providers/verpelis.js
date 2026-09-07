@@ -568,6 +568,15 @@ async function resolveOkRu(embedUrl) {
 }
 
 async function resolveEmbed(url) {
+    // jwplayer wrapper: ?source=<url-encoded inner embed URL>
+    if (/jwplayer|\?source=/.test(url)) {
+        const sm = url.match(/[?&]source=([^&]+)/);
+        if (sm) {
+            let inner = decodeURIComponent(sm[1].replace(/\+/g, ' '));
+            if (!/^https?:\/\//i.test(inner)) inner = "https:" + inner;
+            return resolveEmbed(inner);   // recursively dispatch the inner host (voe/hglink/...)
+        }
+    }
     if (isMirror(url, "STREAMWISH")) return resolveStreamwish(url);
     if (isMirror(url, "VIDHIDE"))    return resolveVidhide(url);
     if (isMirror(url, "FILEMOON"))   return resolveFilemoon(url);
