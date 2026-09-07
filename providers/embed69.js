@@ -2,6 +2,69 @@
  * embed69 - Built from src/embed69/
  * Generated: 2026-05-05T21:05:01.154Z
  */
+/* __QS_POLYFILL__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g) return;
+  if (typeof g.atob !== 'function') {
+    var A64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    g.atob = function (s) {
+      s = String(s || '').replace(/[\t\n\r ]/g, '').replace(/=+$/, '');
+      var out = '';
+      for (var i = 0; i < s.length; i += 4) {
+        var c1 = A64.indexOf(s[i]), c2 = A64.indexOf(s[i + 1] || 'A'), c3 = A64.indexOf(s[i + 2] || 'A'), c4 = A64.indexOf(s[i + 3] || 'A');
+        var o1 = (c1 << 2) | (c2 >> 4), o2 = ((c2 & 15) << 4) | (c3 >> 2), o3 = ((c3 & 3) << 6) | c4;
+        out += String.fromCharCode(o1);
+        if (s[i + 2]) out += String.fromCharCode(o2);
+        if (s[i + 3]) out += String.fromCharCode(o3);
+      }
+      return out;
+    };
+  }
+  if (typeof g.btoa !== 'function') {
+    var B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+    g.btoa = function (s) {
+      s = String(s || '');
+      var out = '';
+      for (var i = 0; i < s.length; i += 3) {
+        var a = s.charCodeAt(i), b = s.charCodeAt(i + 1) || 0, c = s.charCodeAt(i + 2) || 0;
+        out += B64[(a >> 2)] + B64[((a & 3) << 4) | (b >> 4)] + (i + 1 < s.length ? B64[((b & 15) << 2) | (c >> 6)] : '=') + (i + 2 < s.length ? B64[c & 63] : '=');
+      }
+      return out;
+    };
+  }
+  if (typeof g.URL !== 'function') {
+    function QSURL(url, base) {
+      var u = String(url || '');
+      if (base && !/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
+        var b = (base.match(/^(https?:\/\/[^/?#]*)/i) || [''])[0];
+        if (u.charAt(0) === '/') u = b + u;
+        else if (u.indexOf('?') === 0 || u.indexOf('#') === 0) u = b + '/' + u;
+        else {
+          var bp = (base.match(/^(https?:\/\/[^/?#]+)(\/[^?#]*)?$/i) || []);
+          var dir = (bp[2] || '/').replace(/[^/]*$/, '');
+          u = (bp[1] || '') + dir + u;
+        }
+      }
+      this.href = u;
+      var m = u.match(/^(https?):\/\/([^/?#:]+)(?::(\d+))?(\/[^?#]*)?(\?[^#]*)?(#.*)?$/i) || [];
+      this.protocol = ((m[1] || 'https') + ':');
+      this.hostname = m[2] || '';
+      this.port = m[3] || '';
+      this.host = this.hostname + (this.port ? ':' + this.port : '');
+      this.pathname = m[4] || '/';
+      this.search = m[5] || '';
+      this.hash = m[6] || '';
+      this.origin = this.protocol + '//' + this.host;
+    }
+    QSURL.prototype.toString = function () { return this.href; };
+    g.URL = QSURL;
+  }
+})();
 var __defProp = Object.defineProperty;
 var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
