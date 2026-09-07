@@ -161,29 +161,6 @@
       "supportsExternalPlayer": true
     },
     {
-      "id": "playhubmax",
-      "name": "PlayHubMax",
-      "description": "API privada con contenido premium en Latino.",
-      "version": "2.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/playhubmax.js",
-      "enabled": true,
-      "logo": "https://i.ibb.co/qqKWJyk/logo-rayo-morado-fondo-blanco-121452-121.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "tioplus",
       "name": "TioPlus",
       "description": "Películas y series en HD (Latino) con bypass de doble Base64.",
@@ -219,29 +196,6 @@
       "filename": "providers/lamovie.js",
       "enabled": true,
       "logo": "https://lamovie.cc/img/favicon.png",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
-      "id": "cuevanaubd",
-      "name": "Cuevana UBD",
-      "description": "Proveedor rapido JSON nativo de Cuevana.",
-      "version": "1.2.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/cuevana.js",
-      "enabled": true,
-      "logo": "https://i.postimg.cc/4dJGhTmW/Gemini-Generated-Image-w81fzfw81fzfw81f.png",
       "contentLanguage": [
         "es"
       ],
@@ -315,22 +269,6 @@
         "tv"
       ],
       "filename": "providers/vitaminagg.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
-      "id": "repelishd",
-      "name": "RepelisHD",
-      "description": "Películas y series desde RepelisHD.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/repelishd.js",
       "enabled": true,
       "contentLanguage": [
         "es"
@@ -498,22 +436,6 @@
       "contentLanguage": [
         "es"
       ]
-    },
-    {
-      "id": "lacartoons",
-      "name": "La Cartoons",
-      "description": "Series animadas y cartoons clásicos en español latino desde LaCartoons.com.",
-      "version": "1.1.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/lacartoons.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "logo": "https://images2.imgbox.com/fc/26/S7f7dn42_o.png"
     },
     {
       "id": "animeav1",
