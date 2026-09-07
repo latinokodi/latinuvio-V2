@@ -639,8 +639,26 @@ async function getStreams(tmdbId, mediaType, season, episode, title) {
         
         const timeElapsed = ((Date.now() - timeStart) / 1000).toFixed(2);
         console.log(`[Cinemitas] Resolved ${streams.length} stream(s) in ${timeElapsed}s`);
-        return streams;
-        
+        // Keep only playable sources: drop un-resolved embeds (won't play in Nuvio)
+        // and direct URLs that are dead (403/404, expirado/hotlink).
+        const isPlayableUrl = (u) => { const s2 = (u || '').toLowerCase(); return /\.m3u8(\?|$)/.test(s2) || /\.mp4(\?|$)/.test(s2) || /\.mpd(\?|$)/.test(s2) || /\/hls2?\//.test(s2) || /\/master\.m3u8/.test(s2); };
+        const filtered = [];
+        for (const s of streams) {
+          if (s.isEmbed) { console.log(`[Cinemitas] Drop embed (no resuelto): ${(s.url || '').slice(0, 60)}`); continue; }
+          if (!s.url || !isPlayableUrl(s.url)) { filtered.push(s); continue; }
+          let ok = false, status = 0;
+          try {
+            const method = /\.m3u8(\?|$)/.test(s.url) ? 'GET' : 'HEAD';
+            const rr = await fetch(s.url, { method, headers: { 'User-Agent': UA, 'Range': 'bytes=0-0', ...(s.headers || {}) }, redirect: 'follow' });
+            status = rr.status;
+            ok = rr.ok || rr.status === 206;
+          } catch (e) {}
+          if (ok && status >= 200 && status < 400) filtered.push(s);
+          else console.log(`[Cinemitas] Drop dead stream (${status}): ${(s.url || '').slice(0, 60)}`);
+        }
+        console.log(`[Cinemitas] Playable streams: ${filtered.length} (de ${streams.length})`);
+        return filtered;
+
     } catch (e) {
         console.error("[Cinemitas] Error in getStreams:", e.message);
         return [];
