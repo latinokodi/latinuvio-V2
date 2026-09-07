@@ -251,4 +251,25 @@ async function getStreams(id, type, season, episode) {
     return streams;
 }
 
+/* __PLAYABLE_FILTER__ */
+var __filterPlayable = (function () {
+  return function (sources) {
+    var arr = sources || [];
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var s = arr[i];
+      if (s && s.isEmbed) continue;
+      if (s) out.push(s);
+    }
+    return out;
+  };
+})();
 module.exports = { getStreams };
+(function () {
+  var _og = module.exports.getStreams;
+  if (typeof _og === "function" && !_og.__PLAYABLE_WRAPPED__) {
+    var _w = function () { var r = _og.apply(null, arguments); return Promise.resolve(r).then(function (s) { return __filterPlayable(s || []); }); };
+    _w.__PLAYABLE_WRAPPED__ = true;
+    module.exports.getStreams = _w;
+  }
+})();
