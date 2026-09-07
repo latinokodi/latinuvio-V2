@@ -24,6 +24,7 @@ Thumbs.db
 *.bak.*
 *.tmp
 scripts/.fetch_timeout_backup/
+scripts/.playable_backup/
 _discprobe*.js
 _test_*.js
 _probe_*.js
