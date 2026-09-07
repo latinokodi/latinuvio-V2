@@ -37,7 +37,14 @@
       return out;
     };
   }
-  if (typeof g.URL !== 'function') {
+  var _u = null;
+  try { if (typeof g.URL === 'function') _u = new g.URL('https://api.themoviedb.org/x/y?z=1'); } catch (e) {}
+  var _urlOk = !!(_u && typeof _u.hostname === 'string' && _u.hostname === 'api.themoviedb.org' && typeof _u.origin === 'string' && _u.origin.indexOf('http') === 0);
+  if (typeof g.URL !== 'function' || !_urlOk) {
+    // Nuvio ships its own URL polyfill, but its parse depends on a __parse_url
+    // bridge whose fallback returns EMPTY hostname/origin/protocol. So we ALWAYS
+    // install a correct regex-based URL parser (override when Nuvio's is broken,
+    // no-op when absent). This fixes embed69's new URL(...).origin/.hostname in Nuvio.
     function QSURL(url, base) {
       var u = String(url || '');
       if (base && !/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) {
