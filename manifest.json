@@ -259,22 +259,6 @@
       ]
     },
     {
-      "id": "vitaminagg",
-      "name": "VitaminagG",
-      "description": "Películas y series en Latino con bypass de desencriptado.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/vitaminagg.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ]
-    },
-    {
       "id": "cine24h",
       "name": "Cine24h",
       "description": "Películas y series en Español y Latino.",
@@ -518,25 +502,6 @@
         "tv"
       ],
       "filename": "providers/monoschinos.js",
-      "enabled": true,
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ]
-    },
-    {
-      "id": "animejl",
-      "name": "AnimeJL",
-      "description": "Anime en VOSE con servidores voe, vidhide, streamwish. Resuelve vía embed69.",
-      "version": "1.0.0",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "tv"
-      ],
-      "filename": "providers/animejl.js",
       "enabled": true,
       "contentLanguage": [
         "es"
