@@ -1,3 +1,50 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 /**
  * SoloLatino provider.
  * Searches sololatino.net → extracts IMDB ID → resolves via embed69 to direct m3u8.
@@ -26,13 +73,19 @@ const HEADERS = {
 
 async function getTMDBInfo(id, type) {
     try {
-        const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=439c478a771f35c05022f9feabcca01c&language=es-MX`;
-        const res = await fetch(url, { headers: HEADERS }).then(r => r.json());
-        return {
-            title: type === "movie" ? res.title : res.name,
-            imdb_id: res.imdb_id || null,
-            year: (res.release_date || res.first_air_date || "").substring(0, 4)
-        };
+        const titles = new Set();
+        let year = "", imdb_id = null;
+        for (const lang of ["es-MX", "es-ES", "en-US"]) {
+            const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=439c478a771f35c05022f9feabcca01c&language=${lang}`;
+            const res = await fetch(url, { headers: HEADERS }).then(r => r.json());
+            const t = type === "movie" ? (res.title || res.original_title) : (res.name || res.original_name);
+            if (t) titles.add(t);
+            const orig = res.original_title || res.original_name;
+            if (orig) titles.add(orig);
+            if (!imdb_id && res.imdb_id) imdb_id = res.imdb_id;
+            if (!year) year = (res.release_date || res.first_air_date || "").substring(0, 4);
+        }
+        return titles.size ? { titles: Array.from(titles), year, imdb_id } : null;
     } catch (e) {
         return null;
     }
@@ -57,6 +110,8 @@ async function searchSite(searchTitle, type) {
     const ns = norm(searchTitle);
     const wantSeries = type === "tv";
 
+    let bestMatch = null;
+    let bestScore = -1e9;
     while ((match = cardRegex.exec(cleaned)) !== null) {
         const cardHtml = match[1];
         const href = cardHtml.match(/href="(.*?)"/);
@@ -69,16 +124,14 @@ async function searchSite(searchTitle, type) {
         if (!wantSeries && isSeries) continue;
 
         const na = norm(altTitle[1]);
-        if (na.includes(ns) || ns.includes(na)) {
-            return href[1];
-        }
-        results.push({ url: href[1], title: altTitle[1], isSeries });
+        let score = -1;
+        if (na === ns) score = 100;                                    // exact
+        else if (ns.length >= 6 && (na.includes(ns) || ns.includes(na)) && Math.abs(na.length - ns.length) < 8) score = 40; // substring, only if close length
+        else if (ns.length >= 6 && na.includes(ns) && Math.abs(na.length - ns.length) < 8) score = 30;
+        if (score > bestScore) { bestScore = score; bestMatch = href[1]; }
     }
-
-    for (const r of results) {
-        if (wantSeries === r.isSeries) return r.url;
-    }
-    return results.length ? results[0].url : null;
+    if (bestMatch && bestScore >= 30) return bestMatch;
+    return null;
 }
 
 // ─── Main ────────────────────────────────────────────────────────────────
@@ -87,19 +140,20 @@ async function getStreams(id, type, season, episode, title) {
     console.warn(`[SoloLatino] Resolving: ${id} Type=${type} S${season}E${episode} (${title})`);
 
     const tmdbInfo = await getTMDBInfo(id, type);
-    let searchTitle = title;
-    let imdbId = null;
-    if (tmdbInfo) {
-        searchTitle = tmdbInfo.title || title;
-        imdbId = tmdbInfo.imdb_id || null;
-    }
-    if (!searchTitle) return [];
+    let imdbId = tmdbInfo ? tmdbInfo.imdb_id : null;
+    const titleCandidates = (tmdbInfo && tmdbInfo.titles && tmdbInfo.titles.length)
+        ? tmdbInfo.titles : (title ? [title] : []);
+    if (!titleCandidates.length) return [];
 
     try {
-        // Step 1: Search on sololatino.net
-        const matchedUrl = await searchSite(searchTitle, type);
+        // Step 1: Search on sololatino.net with each title variant until one matches
+        let matchedUrl = null, searchTitle = "";
+        for (const cand of titleCandidates) {
+            matchedUrl = await searchSite(cand, type);
+            if (matchedUrl) { searchTitle = cand; break; }
+        }
         if (!matchedUrl) {
-            console.warn(`[SoloLatino] No match found for: ${searchTitle}`);
+            console.warn(`[SoloLatino] No match found for: ${titleCandidates.join(" / ")}`);
             return [];
         }
         console.warn(`[SoloLatino] Matched URL: ${matchedUrl}`);

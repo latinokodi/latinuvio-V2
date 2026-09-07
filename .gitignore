@@ -18,3 +18,18 @@ Thumbs.db
 *.log
 .idea/
 .vscode/
+
+# Backups / scratch — never push these
+*.bak
+*.bak.*
+*.tmp
+scripts/.fetch_timeout_backup/
+_discprobe*.js
+_test_*.js
+_probe_*.js
+
+# Python / misc
+__pycache__/
+*.pyc
+*.pyo
+.venv/

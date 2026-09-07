@@ -1,4 +1,52 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
+var titleMatch = (function(){try{return require("./title_match.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
@@ -310,25 +358,26 @@ async function getStreams(id, type, season, episode) {
     const info = await getTMDBInfo(id, type);
     if (!info) return [];
 
-    let matchedPost = null;
+    // Fuzzy match via the shared Jaccard matcher (avoids wrong-movie substring matches)
+    const cands = [];
     for (const title of info.titles) {
         const results = await search(title);
-        if (results && results.length > 0) {
-            matchedPost = results.find(r => {
+        if (results && results.length) {
+            for (const r of results) {
                 const isTv = r.url.includes('/series/');
-                if (type === 'tv' && !isTv) return false;
-                if (type === 'movie' && isTv) return false;
-
-                const rt = cleanTitle(r.title);
-                return info.titles.some(t => {
-                    const ct = cleanTitle(t);
-                    return rt === ct || rt.includes(ct) || ct.includes(rt);
-                });
-            });
-            if (matchedPost) break;
+                if (type === 'tv' && !isTv) continue;
+                if (type === 'movie' && isTv) continue;
+                cands.push({ title: r.title, url: r.url, year: (r.title.match(/\b(19|20)\d{2}\b/) || [])[0] });
+            }
         }
     }
-
+    let matchedPost = null;
+    if (titleMatch && titleMatch.pickBestTitleMatch) {
+        const best = titleMatch.pickBestTitleMatch(info.titles, info.year, cands, type, season);
+        if (best) matchedPost = { url: best.url, title: best.title };
+    } else if (cands.length) {
+        matchedPost = { url: cands[0].url, title: cands[0].title };
+    }
     if (!matchedPost) {
         console.log("[HomeCine] No matching post found.");
         return [];

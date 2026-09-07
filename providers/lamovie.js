@@ -1,3 +1,50 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 // src/lamovie/index.js (v2.4.0 - Cache Buster: 18:29)
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
@@ -75,6 +122,9 @@ function scoreCandidate(candidateTitle, tmdbTitle, originalTitle, year) {
   if (sequelNum && normCand.split(" ").indexOf(sequelNum[1]) === -1) {
     score -= 100;
   }
+  // penalize a candidate whose year differs from the requested year
+  var candYear = (normCand.match(/\b(19|20)\d{2}\b/) || [])[0];
+  if (year && candYear && candYear !== year) score -= 60;
   return score;
 }
 function b64decode(str) {
@@ -442,7 +492,7 @@ function searchLaMovie(title, originalTitle, year, postTypes) {
     }
     scored.sort(function (a, b) { return b.score - a.score; });
     var best = scored[0];
-    if (best.score < 20) {
+    if (best.score < 45) {
       console.log("[LaMovie] Sin coincidencias (score: " + best.score.toFixed(1) + ")");
       return null;
     }

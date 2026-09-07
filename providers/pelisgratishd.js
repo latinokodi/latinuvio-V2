@@ -1,4 +1,52 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
+var titleMatch = (function(){try{return require("./title_match.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
@@ -53,28 +101,21 @@ async function getStreams(id, type, season, episode, title) {
         let match;
         let matchedUrl = null;
         const cleanSearchTitle = searchTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
-
+        const items = [];
         while ((match = itemRegex.exec(searchHtml)) !== null) {
             const itemHtml = match[1];
             const linkMatch = itemHtml.match(/<div class="title"><a href="([^"]+)">([^<]+)<\/a>/i);
             if (!linkMatch) continue;
-
-            const href = linkMatch[1];
-            const itemTitle = linkMatch[2].toLowerCase().replace(/[^a-z0-9]/g, '');
-
-            if (itemTitle.includes(cleanSearchTitle) || cleanSearchTitle.includes(itemTitle)) {
-                matchedUrl = href;
-                break;
-            }
+            items.push({ url: linkMatch[1], title: linkMatch[2] });
         }
-
+        if (titleMatch && titleMatch.pickBestTitleMatch) {
+            const best = titleMatch.pickBestTitleMatch([searchTitle], null, items, type, season);
+            if (best) matchedUrl = best.url;
+        }
         if (!matchedUrl) {
-            // Fallback to first result if no title matched exactly
-            itemRegex.lastIndex = 0;
-            const firstMatch = itemRegex.exec(searchHtml);
-            if (firstMatch) {
-                const linkMatch = firstMatch[1].match(/<div class="title"><a href="([^"]+)">/i);
-                if (linkMatch) matchedUrl = linkMatch[1];
+            for (const it of items) {
+                const t = it.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (t.includes(cleanSearchTitle) || cleanSearchTitle.includes(t)) { matchedUrl = it.url; break; }
             }
         }
 

@@ -1,3 +1,50 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 /**
  * Pelisyseries provider — WordPress DooPlay theme.
  *
@@ -13,6 +60,7 @@
  * Requires: Node.js 18+ (global fetch)
  */
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
+var titleMatch = (function(){try{return require("./title_match.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
@@ -151,22 +199,16 @@ async function searchSite(searchTitle, type) {
 
 // ─── Match result by title ──────────────────────────────────────────────────
 
-function matchResult(results, searchTitle) {
+function matchResult(results, searchTitle, year) {
     if (!results.length) return null;
+    if (titleMatch && titleMatch.pickBestTitleMatch) {
+        const cands = results.map(r => ({ title: r.title, url: r.url, year: year || null }));
+        const best = titleMatch.pickBestTitleMatch([searchTitle], year || null, cands, null, null);
+        return best ? results.find(r => r.url === best.url) : null;
+    }
     const nSearch = norm(searchTitle);
-
-    // Exact normalized match first
-    for (const r of results) {
-        if (norm(r.title) === nSearch) return r;
-    }
-
-    // Contains match
-    for (const r of results) {
-        const nR = norm(r.title);
-        if (nR.includes(nSearch) || nSearch.includes(nR)) return r;
-    }
-
-    // Fallback: first result
+    for (const r of results) if (norm(r.title) === nSearch) return r;
+    for (const r of results) { const nR = norm(r.title); if (nR.includes(nSearch) || nSearch.includes(nR)) return r; }
     return results[0];
 }
 

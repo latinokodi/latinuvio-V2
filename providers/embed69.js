@@ -63,8 +63,41 @@ var __async = (__this, __arguments, generator) => {
   });
 };
 
+// ── Retry/backoff helper (self-contained; Nuvio QuickJS-safe) ──
+function retryFetch(fetchFn, opts) {
+  return __async(this, null, function* () {
+    var retries = (opts && opts.retries != null) ? opts.retries : 2;
+    var baseDelay = (opts && opts.baseDelay != null) ? opts.baseDelay : 400;
+    var maxDelay = (opts && opts.maxDelay != null) ? opts.maxDelay : 3200;
+    var attempt = 0;
+    while (true) {
+      try {
+        var res = yield fetchFn();
+        if (res && typeof res.status === "number" && attempt < retries &&
+            (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600))) {
+          attempt++;
+          var delay = Math.min(maxDelay, baseDelay * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150);
+          console.warn(`[HTTP] Retry ${attempt}/${retries} (HTTP ${res.status}) en ${(opts && opts.label) || "url"} tras ${delay}ms`);
+          yield new Promise(function (r) { setTimeout(r, delay); });
+          continue;
+        }
+        return res;
+      } catch (error) {
+        if (attempt < retries) {
+          attempt++;
+          var delay2 = Math.min(maxDelay, baseDelay * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150);
+          console.warn(`[HTTP] Retry ${attempt}/${retries} (${(error && error.message) || "network error"}) tras ${delay2}ms`);
+          yield new Promise(function (r2) { setTimeout(r2, delay2); });
+          continue;
+        }
+        throw error;
+      }
+    }
+  });
+}
+
 // ── Rich stream labels (shared module) ──
-var streamLabels = typeof require !== 'undefined' ? require('./stream_labels.js') : null;
+var streamLabels = (function(){try{return require('./stream_labels.js')}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s, pn) {
   var q = s.quality || 'HD', server = s.serverName || s.serverLabel || s.servername || '';
   var lang = s.lang || s.language || s.audio || 'Latino', isReal = s.isReal === true;
@@ -135,7 +168,9 @@ var require_http = __commonJS({
           });
           if (opt.signal)
             fetchOptions.signal = opt.signal;
-          var response = yield fetch(url, fetchOptions);
+          var response = yield retryFetch(function () { return fetch(url, fetchOptions); }, {
+            retries: 2, baseDelay: 400, maxDelay: 3200, label: url
+          });
           if (opt.redirect === "manual" && (response.status === 301 || response.status === 302)) {
             const redirectUrl = response.headers.get("location");
             console.log(`[HTTP] Redirecci\xF3n detectada (Manual): ${redirectUrl}`);
@@ -1321,20 +1356,15 @@ function decryptEmbed69Token(token, keyWA) {
 function applyPipingLocal(result) {
   if (!result || !result.url)
     return result;
-  let url = result.url;
-  const ua = result.headers && result.headers["User-Agent"] ? result.headers["User-Agent"] : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-  const headers = [
-    `User-Agent=${ua}`,
-    `Referer=${result.headers && result.headers.Referer ? result.headers.Referer : "https://sololatino.net/"}`
-  ];
-  if (result.headers && result.headers.Origin) {
-    headers.push(`Origin=${result.headers.Origin}`);
-  }
-  url = `${url}|${headers.join("|")}`;
-  if (!url.toLowerCase().includes(".m3u8") && !url.toLowerCase().includes(".mp4")) {
-    url += "#.m3u8";
-  }
-  result.url = url;
+  // Nuvio forwards the `headers` object to the player; the Stremio/Kodi
+  // `url|User-Agent=..|Referer=..` pipe convention is NOT valid in Nuvio and
+  // makes the URL unplayable. Keep the URL clean and deliver headers instead.
+  const headers = result.headers || {};
+  if (!headers["User-Agent"] && !headers["user-agent"])
+    headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+  if (!headers.Referer && !headers.referer)
+    headers["Referer"] = "https://embed69.org/";
+  result.headers = headers;
   return result;
 }
 function resolveEmbedLocal(url, hint = "") {
@@ -1417,10 +1447,12 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
       }
       const url = `https://embed69.org/f/${urlSuffix}`;
       console.log(`[Embed69] Buscando en: ${url}`);
-      const response = yield fetch(url, {
-        method: "GET",
-        headers: { "User-Agent": currentUA, "Referer": "https://sololatino.net/" }
-      }).catch(() => null);
+      const response = yield retryFetch(function () {
+        return fetch(url, {
+          method: "GET",
+          headers: { "User-Agent": currentUA, "Referer": "https://sololatino.net/" }
+        });
+      }, { retries: 2, baseDelay: 400, maxDelay: 3200, label: url }).catch(() => null);
       if (!response || !response.ok)
         return [];
       const html = yield response.text();

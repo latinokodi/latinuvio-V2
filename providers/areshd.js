@@ -1,3 +1,50 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 /**
  * AresHD Provider for Luvio
  * Resolves embed URLs from player.areshd.com into direct HLS/MP4 streams.
@@ -5,6 +52,7 @@
  * Resolver implementations adapted from nuvio-providers-latino-v2.
  */
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
+var titleMatch = (function(){try{return require("./title_match.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
  var l = s.lang||s.language||s.audio||"Latino", r = s.isReal===true;
@@ -600,12 +648,16 @@ async function resolveEmbed(embedUrl) {
 
 async function getTMDBInfo(id, type) {
     try {
+        if (titleMatch && titleMatch.getTMDBTitles) {
+            return await titleMatch.getTMDBTitles(id, type, TMDB_API_KEY, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
+        }
         const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=es-MX`;
         const res = await fetch(url, { headers: HEADERS }).then(r => r.json());
-        return {
-            title: type === "movie" ? res.title : res.name,
-            year: (res.release_date || res.first_air_date || "").substring(0, 4)
-        };
+        const titles = [];
+        const t = type === "movie" ? (res.title || res.original_title) : (res.name || res.original_name);
+        if (t) titles.push(t);
+        if (res.original_title || res.original_name) titles.push(res.original_title || res.original_name);
+        return { titles, year: (res.release_date || res.first_air_date || "").substring(0, 4) };
     } catch (e) {
         console.log(`[AresHD] TMDB Error: ${e.message}`);
         return null;
@@ -715,10 +767,18 @@ async function getStreams(id, type, season, episode) {
     const info = await getTMDBInfo(id, type);
     if (!info) return [];
 
-    const results = await searchAres(info.title);
-    if (results.length === 0) return [];
+    const cands = [];
+    for (const t of (info.titles || [info.title])) {
+        const results = await searchAres(t);
+        if (results && results.length) for (const r of results) cands.push(r);
+    }
+    if (cands.length === 0) return [];
 
-    const target = results[0];
+    let target = cands[0];
+    if (titleMatch && titleMatch.pickBestTitleMatch) {
+        const best = titleMatch.pickBestTitleMatch(info.titles, info.year, cands, type, season);
+        if (best) target = best; else return [];
+    }
     let url = target.url;
 
     if (type === "tv") {

@@ -1,3 +1,206 @@
+/* __AXIOS_SHIM__ */
+var __axios = (function () {
+  function encodeQuery(params) {
+    if (!params) return "";
+    var keys = Object.keys(params), parts = [];
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i], v = params[k];
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v)) v = v.join(",");
+      else if (typeof v === "object") v = JSON.stringify(v);
+      parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(v));
+    }
+    return parts.join("&");
+  }
+  function buildHeaders(resHeaders) {
+    var out = Object.create(null);
+    try {
+      if (resHeaders && typeof resHeaders.forEach === "function") {
+        resHeaders.forEach(function (v, k) {
+          var key = String(k).toLowerCase();
+          if (key === "set-cookie") {
+            if (!out[key]) out[key] = [];
+            out[key].push(v);
+          } else {
+            out[key] = v;
+          }
+        });
+      }
+    } catch (e) {}
+    try {
+      if (resHeaders && typeof resHeaders.getSetCookie === "function") {
+        var sc = resHeaders.getSetCookie();
+        if (sc && sc.length) out["set-cookie"] = Array.prototype.slice.call(sc);
+      }
+    } catch (e) {}
+    var obj = Object.create(null);
+    for (var key in out) obj[key] = out[key];
+    obj.get = function (name) {
+      var k = String(name).toLowerCase(), val = obj[k];
+      if (val === undefined) return null;
+      return Array.isArray(val) ? val[0] : val;
+    };
+    obj.has = function (name) { return obj[String(name).toLowerCase()] !== undefined; };
+    return obj;
+  }
+  function request(config) {
+    if (typeof config === "string") config = { url: config };
+    config = config || {};
+    return new Promise(function (resolve, reject) {
+      var url = config.url;
+      if (!url) { reject(new Error("Request is missing url")); return; }
+      if (config.params) {
+        var q = encodeQuery(config.params);
+        if (q) url += (url.indexOf("?") >= 0 ? "&" : "?") + q;
+      }
+      var method = (config.method || "get").toUpperCase();
+      var opts = { method: method };
+      var headers = {};
+      var h = config.headers || {};
+      if (typeof h.forEach === "function") {
+        h.forEach(function (v, k) { headers[String(k)] = v; });
+      } else {
+        for (var hk in h) if (h.hasOwnProperty(hk)) headers[hk] = h[hk];
+      }
+      if (config.data !== undefined && config.data !== null) {
+        if (typeof config.data === "object" && !ArrayBuffer.isView(config.data)) {
+          opts.body = JSON.stringify(config.data);
+          if (!headers["Content-Type"] && !headers["content-type"]) headers["Content-Type"] = "application/json";
+        } else if (typeof config.data === "string" || typeof config.data === "number" || typeof config.data === "boolean") {
+          opts.body = config.data;
+        }
+      }
+      opts.headers = headers;
+      opts.redirect = (config.maxRedirects === 0) ? "manual" : "follow";
+
+      var settled = false;
+      var timer = null;
+      if (config.timeout) {
+        timer = setTimeout(function () {
+          if (!settled) { settled = true; reject(new Error("timeout of " + config.timeout + "ms exceeded")); }
+        }, config.timeout);
+      }
+      function settle(fn, val) {
+        if (settled) return;
+        settled = true;
+        if (timer) clearTimeout(timer);
+        fn(val);
+      }
+
+      var f = (typeof fetch === "function") ? fetch : null;
+      if (!f) { settle(reject, new Error("fetch unavailable")); return; }
+
+      f(url, opts).then(function (res) {
+        res.text().then(function (text) {
+          var status = res.status;
+          var okStatus = config.validateStatus ? config.validateStatus(status) : (status >= 200 && status < 300);
+          var ct = "";
+          try { ct = (res.headers && res.headers.get) ? (res.headers.get("content-type") || "") : ""; } catch (e) {}
+          var data = text, wantsJson;
+          if (config.responseType === "json" || config.responseType === "text") {
+            wantsJson = config.responseType === "json";
+          } else {
+            wantsJson = ct.indexOf("application/json") >= 0 || ct.indexOf("text/json") >= 0;
+          }
+          if (wantsJson) {
+            try { data = JSON.parse(text); } catch (e) { data = text; }
+          }
+          var response = {
+            data: data,
+            status: status,
+            statusText: res.statusText || "",
+            headers: buildHeaders(res.headers),
+            config: config,
+            request: null
+          };
+          if (okStatus) settle(resolve, response);
+          else {
+            var err = new Error("Request failed with status code " + status);
+            err.response = response;
+            err.config = config;
+            settle(reject, err);
+          }
+        }).catch(function (e) { settle(reject, e); });
+      }).catch(function (e) { settle(reject, new Error("Network Error")); });
+    });
+  }
+  function make(method) {
+    return function (url, cfg) {
+      cfg = cfg || {};
+      cfg.method = method;
+      cfg.url = url;
+      return request(cfg);
+    };
+  }
+  var instance = {
+    request: request,
+    get: make("get"),
+    post: make("post"),
+    put: make("put"),
+    delete: make("delete"),
+    head: make("head"),
+    options: make("options"),
+    patch: make("patch"),
+    create: function () { return instance; },
+    all: function (arr) { return Promise.all(arr); },
+    spread: function (fn) { return function (arr) { return fn.apply(null, arr); }; },
+    defaults: {},
+    interceptors: { request: { use: function () {} }, response: { use: function () {} } },
+    isAxiosError: function () { return false; },
+    CancelToken: { source: function () { return { token: null, cancel: function () {} }; } },
+    Cancel: function () {},
+    AxiosError: function (m) { this.message = m; }
+  };
+  instance.default = instance;
+  return instance;
+})();
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 /**
  * cuevana_unbuendato - Built from src/cuevana_unbuendato/
  * Generated: 2026-05-05T21:05:01.144Z
@@ -74,7 +277,7 @@ var __async = (__this, __arguments, generator) => {
 };
 
 // src/utils/ua.js
-var streamLabels = typeof require !== 'undefined' ? require('./stream_labels.js') : null;
+var streamLabels = (function(){try{return require('./stream_labels.js')}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s, pn) {
   var q = s.quality || 'HD', server = s.serverName || s.serverLabel || s.servername || '';
   var lang = s.lang || s.language || s.audio || 'Latino', isReal = s.isReal === true;
@@ -1241,7 +1444,7 @@ var require_quality = __commonJS({
 // src/resolvers/goodstream.js
 var require_goodstream = __commonJS({
   "src/resolvers/goodstream.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     var { detectQuality } = require_quality();
     var { getSessionUA } = require_http();
     function resolve3(embedUrl) {
@@ -1473,7 +1676,7 @@ var require_vimeos = __commonJS({
 // src/resolvers/buzzheavier.js
 var require_buzzheavier = __commonJS({
   "src/resolvers/buzzheavier.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     var { getStealthHeaders } = require_http();
     function resolve3(embedUrl) {
       return __async(this, null, function* () {
@@ -1601,7 +1804,7 @@ function resolve(embedUrl) {
 var import_axios, UA;
 var init_okru = __esm({
   "src/resolvers/okru.js"() {
-    import_axios = __toESM(require("axios"));
+    import_axios = __toESM(__axios);
     UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
   }
 });
@@ -1609,7 +1812,7 @@ var init_okru = __esm({
 // src/resolvers/pixeldrain.js
 var require_pixeldrain = __commonJS({
   "src/resolvers/pixeldrain.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     function resolve3(embedUrl) {
       return __async(this, null, function* () {
         try {
@@ -1722,7 +1925,7 @@ function resolve2(embedUrl) {
 var import_axios2, UA2;
 var init_turbovid = __esm({
   "src/resolvers/turbovid.js"() {
-    import_axios2 = __toESM(require("axios"));
+    import_axios2 = __toESM(__axios);
     UA2 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
   }
 });
@@ -1836,7 +2039,7 @@ var require_embedseek = __commonJS({
 // src/resolvers/tplayer.js
 var require_tplayer = __commonJS({
   "src/resolvers/tplayer.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     var { getStealthHeaders } = require_http();
     function resolve3(embedUrl) {
       return __async(this, null, function* () {
@@ -2261,7 +2464,7 @@ var require_doodstream = __commonJS({
 // src/resolvers/vidnest.js
 var require_vidnest = __commonJS({
   "src/resolvers/vidnest.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     function resolve3(embedUrl) {
       return __async(this, null, function* () {
         try {
@@ -2355,7 +2558,7 @@ var require_vidsonic = __commonJS({
 // src/resolvers/barmonrey.js
 var require_barmonrey = __commonJS({
   "src/resolvers/barmonrey.js"(exports2, module2) {
-    var axios3 = require("axios");
+    var axios3 = __axios;
     function resolve3(embedUrl) {
       return __async(this, null, function* () {
         try {
@@ -2741,7 +2944,7 @@ function getStreams(tmdbId, mediaType, season, episode, title, year) {
       if (!isMovie && season && episode) {
         apiUrl += `&season=${season}&episode=${episode}`;
       }
-      const axios3 = require("axios");
+      const axios3 = __axios;
       const response = yield axios3.get(apiUrl, {
         timeout: 1e4,
         headers: {

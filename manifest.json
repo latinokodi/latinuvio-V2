@@ -664,6 +664,28 @@
         "m3u8",
         "mp4"
       ]
+    },
+    {
+      "id": "seriesmetro",
+      "name": "SeriesMetro",
+      "description": "Películas y series en Latino desde SeriesMetro. Resuelve vía Fastream.",
+      "version": "1.0.0",
+      "author": "latinokodi",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "filename": "providers/seriesmetro.js",
+      "enabled": true,
+      "contentLanguage": [
+        "es"
+      ],
+      "formats": [
+        "m3u8",
+        "mp4"
+      ],
+      "limited": false,
+      "supportsExternalPlayer": true
     }
   ]
 }

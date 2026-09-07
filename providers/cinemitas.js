@@ -1,3 +1,50 @@
+/* __FETCH_RETRY__ */
+(function () {
+  var g = (typeof globalThis !== 'undefined') ? globalThis
+    : (typeof self !== 'undefined') ? self
+    : (typeof global !== 'undefined') ? global
+    : (typeof window !== 'undefined') ? window
+    : null;
+  if (!g || typeof g.fetch !== 'function' || g.fetch.__RETRY_WRAPPED__) return;
+  var _f = g.fetch;
+  function _timeoutSignal(ms) {
+    try {
+      if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') return AbortSignal.timeout(ms);
+    } catch (e) {}
+    try {
+      if (typeof AbortController === 'function' && typeof setTimeout === 'function') {
+        var c = new AbortController();
+        var t = setTimeout(function () { try { c.abort(); } catch (e) {} }, ms);
+        return c.signal;
+      }
+    } catch (e) {}
+    return undefined;
+  }
+  function _retryFetch(url, options) {
+    if (options && typeof options === 'object' && !options.signal) {
+      var t = (typeof options.timeout === 'number') ? options.timeout : 15000;
+      if (t > 0) { options = Object.assign({}, options, { signal: _timeoutSignal(t) }); delete options.timeout; }
+    }
+    return new Promise(function (resolve, reject) {
+      var attempt = 0, retries = 2, base = 400, max = 3200;
+      function go() {
+        _f(url, options).then(function (res) {
+          if (res && (res.status === 429 || res.status === 408 || (res.status >= 500 && res.status < 600)) && attempt < retries) {
+            attempt++;
+            setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150));
+          } else { resolve(res); }
+        }).catch(function (err) {
+          if (err && err.name === "AbortError") { reject(err); return; }
+          if (attempt < retries) { attempt++; setTimeout(go, Math.min(max, base * Math.pow(2, attempt - 1)) + Math.floor(Math.random() * 150)); }
+          else { reject(err); }
+        });
+      }
+      go();
+    });
+  }
+  _retryFetch.__RETRY_WRAPPED__ = true;
+  try { g.fetch = _retryFetch; } catch (e) {}
+})();
 var streamLabels = (function(){try{return require("./stream_labels.js")}catch(e){return null}})();
 var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s,pn) {
  var q = s.quality||"HD", sr = s.serverName||s.serverLabel||s.servername||"";
@@ -283,16 +330,28 @@ async function resolveEmbed(embedUrl) {
         return resolveCvid(embedUrl);
     }
     if (u.includes("uqload")) {
-        const { resolveUqload } = require("./cdn_resolvers");
-        return resolveUqload(embedUrl);
+        try { const { resolveUqload } = require("./cdn_resolvers"); return resolveUqload(embedUrl); }
+        catch (e) { console.log("[Cinemitas] cdn_resolvers no disponible (uqload)"); return null; }
     }
     if (u.includes("goodstream")) {
-        const { resolveGoodstream } = require("./cdn_resolvers");
-        return resolveGoodstream(embedUrl);
+        try { const { resolveGoodstream } = require("./cdn_resolvers"); return resolveGoodstream(embedUrl); }
+        catch (e) { console.log("[Cinemitas] cdn_resolvers no disponible (goodstream)"); return null; }
     }
     if (u.includes("vimeos")) {
-        const { resolveVimeos } = require("./cdn_resolvers");
-        return resolveVimeos(embedUrl);
+        try { const { resolveVimeos } = require("./cdn_resolvers"); return resolveVimeos(embedUrl); }
+        catch (e) { console.log("[Cinemitas] cdn_resolvers no disponible (vimeos)"); return null; }
+    }
+    if (u.includes("bysezoxexe")) {
+        try { const { resolveBysezoxexe } = require("./cdn_resolvers"); return resolveBysezoxexe(embedUrl); }
+        catch (e) { return null; }
+    }
+    if (u.includes("audinifer")) {
+        try { const { resolveAudinifer } = require("./cdn_resolvers"); return resolveAudinifer(embedUrl); }
+        catch (e) { return null; }
+    }
+    if (u.includes("vidara")) {
+        try { const { resolveVidara } = require("./cdn_resolvers"); return resolveVidara(embedUrl); }
+        catch (e) { return null; }
     }
     
     console.log(`[Cinemitas] No resolver found for embed: ${embedUrl}`);
@@ -308,6 +367,26 @@ function slugify(title) {
         .replace(/\s+/g, "-")
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "");
+}
+
+// Find a movie/series page via the DooPlay search (works even when slug-probing
+// fails because the site's title/slug differs from the TMDB title).
+async function dooSearchSite(query, mediaType) {
+    if (!query) return null;
+    const postType = mediaType === "movie" ? "movie" : "tvshows";
+    const path = mediaType === "movie" ? "movies" : "tvshows";
+    const url = `https://cinemitas.org/?dooplay=search&post_type=${postType}&s=${encodeURIComponent(query)}`;
+    try {
+        const res = await fetch(url, { headers: { "User-Agent": UA, "Accept": "text/html" } });
+        if (!res.ok) return null;
+        const html = await res.text();
+        const re = new RegExp(`href="https://cinemitas\\.org/${path}/[a-z0-9-]+/"`, "i");
+        const m = html.match(re);
+        if (m) return m[0].replace('href="', '').replace('"', '');
+    } catch (e) {
+        console.log(`[Cinemitas] dooSearch error: ${e.message}`);
+    }
+    return null;
 }
 
 async function getTmdbTitles(tmdbId, type) {
@@ -406,7 +485,24 @@ async function getStreams(tmdbId, mediaType, season, episode, title) {
         }
         
         if (!pageUrl) {
-            console.log("[Cinemitas] No valid main page resolved via slug candidates.");
+            // Search fallback — find the movie/series page via DooPlay search
+            console.log("[Cinemitas] Slug probing failed. Trying site search...");
+            const searchQueries = [info.titleEs, info.titleOriginal, info.titleEn].filter(Boolean);
+            for (const sq of searchQueries) {
+                const searchUrl = await dooSearchSite(sq, mediaType);
+                if (searchUrl) {
+                    const res = await fetch(searchUrl, { headers: { "User-Agent": UA } });
+                    if (res.status === 200) {
+                        pageUrl = searchUrl;
+                        pageHtml = await res.text();
+                        console.log(`[Cinemitas] Resolved via search: ${searchUrl}`);
+                        break;
+                    }
+                }
+            }
+        }
+        if (!pageUrl) {
+            console.log("[Cinemitas] No valid main page resolved via slug candidates or search.");
             return [];
         }
         console.log(`[Cinemitas] Resolved main page URL: ${pageUrl}`);
@@ -523,6 +619,17 @@ async function getStreams(tmdbId, mediaType, season, episode, title) {
                             quality: resolved.quality || "1080p",
                             headers: resolved.headers || {}
                         });
+                    } else if (embedUrl.startsWith("http")) {
+                        // Deja el embed como isEmbed para que Nuvio lo abra/resuelva (no se descarta)
+                        streams.push({
+                            name: "Cinemitas",
+                            title: `${opt.lang} \xB7 Reproductor`,
+                            url: embedUrl,
+                            quality: "HD",
+                            isEmbed: true,
+                            headers: { "User-Agent": UA, Referer: pageUrl }
+                        });
+                        console.log(`[Cinemitas] Embed fallback (isEmbed): ${embedUrl.slice(0, 70)}`);
                     }
                 }
             } catch (err) {
