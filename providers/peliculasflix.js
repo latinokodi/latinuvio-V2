@@ -143,10 +143,24 @@ async function getTMDBInfo(id, type) {
 // ---------------------------------------------------------------------------
 
 async function searchPeliculasFlix(query) {
-    const q = {
-        operationName: "searchAll",
-        variables: { input: query },
-        query: `query searchAll($input: String!) {
+    // `searchFilm` has become a fuzzy/wrong resolver (it returns unrelated films
+    // and empty arrays for exact catalog titles). `searchMovie` returns exact
+    // matches, so try it first and keep searchFilm as a fallback.
+    const MOVIE_Q = `query searchAll($input: String!) {
+  searchMovie(input: $input, limit: 10) {
+    _id
+    slug
+    title
+    name
+    overview
+    languages
+    name_es
+    poster_path
+    poster
+    __typename
+  }
+}`;
+    const FILM_Q = `query searchAll($input: String!) {
   searchFilm(input: $input, limit: 10) {
     _id
     slug
@@ -159,26 +173,76 @@ async function searchPeliculasFlix(query) {
     poster
     __typename
   }
-}`
-    };
+}`;
 
     try {
         log(`[PeliculasFlix] Searching API for: "${query}"`);
-        const res = await fetch(API_URL, {
-            method: "POST",
-            headers: HEADERS,
-            body: JSON.stringify(q)
-        });
-        if (!res.ok) return [];
-        const json = await res.json();
-        return json?.data?.searchFilm || [];
+        for (const q of [MOVIE_Q, FILM_Q]) {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: HEADERS,
+                body: JSON.stringify({
+                    operationName: "searchAll",
+                    variables: { input: query },
+                    query: q
+                })
+            });
+            if (!res.ok) continue;
+            const json = await res.json();
+            const hits = json?.data?.searchMovie || json?.data?.searchFilm || [];
+            if (hits.length) return hits;
+        }
+        return [];
     } catch (e) {
         log(`[PeliculasFlix] Search Error: ${e.message}`);
         return [];
     }
 }
 
-async function getDetail(slug) {
+async function getDetail(slug, movieId) {
+    // The API's `detailFilm(filter:)` resolver now always answers null (verified
+    // live 2026-10); `getMovieLinks(id, slug)` is the field that still returns the
+    // movie document with its `links_online` payload.
+    const q = {
+        operationName: "getMovieLinks",
+        variables: { id: movieId || "", slug: slug },
+        query: `query getMovieLinks($id: MongoID!, $slug: String!) {
+  getMovieLinks(id: $id, slug: $slug) {
+    _id
+    name
+    title
+    name_es
+    slug
+    overview
+    languages
+    links_online
+    __typename
+  }
+}`
+    };
+
+    try {
+        log(`[PeliculasFlix] Fetching movie detail: "${slug}"`);
+        const res = await fetch(API_URL, {
+            method: "POST",
+            headers: HEADERS,
+            body: JSON.stringify(q)
+        });
+        if (!res.ok) return null;
+        const json = await res.json();
+        const node = json?.data?.getMovieLinks || null;
+        if (node && Array.isArray(node.links_online) && node.links_online.length) return node;
+        // legacy fallback (kept in case the API restores detailFilm)
+        const legacy = await getDetailLegacy(slug);
+        if (legacy && Array.isArray(legacy.links_online) && legacy.links_online.length) return legacy;
+        return node || legacy;
+    } catch (e) {
+        log(`[PeliculasFlix] Detail Error: ${e.message}`);
+        return null;
+    }
+}
+
+async function getDetailLegacy(slug) {
     const q = {
         operationName: "detailFilm",
         variables: { slug: slug },
@@ -189,21 +253,13 @@ async function getDetail(slug) {
     name_es
     overview
     languages
-    links_online {
-      _id
-      server
-      lang
-      link
-      page
-      __typename
-    }
+    links_online
     __typename
   }
 }`
     };
 
     try {
-        log(`[PeliculasFlix] Fetching movie detail: "${slug}"`);
         const res = await fetch(API_URL, {
             method: "POST",
             headers: HEADERS,
@@ -721,7 +777,24 @@ async function resolveOkru(embedUrl) {
 // Embed router
 // ---------------------------------------------------------------------------
 
+// Embed-shortener hosts (fkplayer.xyz) wrap the real embed in a JWT; the shared
+// cdn_resolvers module knows how to unwrap them and the mirrors behind them.
+async function resolveViaSharedResolvers(url) {
+    try {
+        const cr = require("./cdn_resolvers.js");
+        if (cr && typeof cr.resolveEmbed === "function") {
+            const s = await cr.resolveEmbed(url);
+            if (s && s.url) return { url: s.url, server: s.server || "Embed", quality: s.quality || "1080p", headers: s.headers || { Referer: url } };
+        }
+    } catch (e) {}
+    return null;
+}
+
 async function resolveEmbed(url) {
+    if (/fkplayer\.|embedshortener\./.test(String(url).toLowerCase())) {
+        const shared = await resolveViaSharedResolvers(url);
+        if (shared) return shared;
+    }
     if (url.includes("ok.ru") || url.includes("okru.link") || url.includes("odnoklassniki")) return resolveOkru(url);
     if (isMirror(url, "STREAMWISH")) return resolveStreamwish(url);
     if (isMirror(url, "VIDHIDE"))    return resolveVidhide(url);
@@ -783,7 +856,7 @@ async function getStreams(id, type, season, episode) {
 
     log(`[PeliculasFlix] Matched movie: "${matchedPost.title}" (Slug: ${matchedPost.slug})`);
 
-    const detail = await getDetail(matchedPost.slug);
+    const detail = await getDetail(matchedPost.slug, matchedPost._id);
     if (!detail || !detail.links_online || detail.links_online.length === 0) {
         log("[PeliculasFlix] No streaming links found in movie detail.");
         return [];
@@ -883,3 +956,44 @@ async function resolveStreamlare(embedUrl) {
     } catch (e) {}
     return null;
 }
+/* Nuvio cannot play embed pages or isEmbed entries — return media URLs only. */
+(function () {
+  if (typeof module === 'undefined' || !module.exports) return;
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__DIRECT_ONLY__) return;
+  var EMBED_HOST = /(voe\.sx|voe\.|streamwish|strwish|hlswish|awish|wishfast|embedwish|hanerix|filemoon|moonembed|bysesukior|bysesukop|vidhide|minochinos|dintezuvio|morencius|movearnpre|luluvdo|uqload|doodstream|dood\.|ds2play|mixdrop|streamtape|waaw|goodstream|vimeos|fastream|mp4upload|ok\.ru|okcdn|odnoklassniki|embed69|dramiyos|premilkyway|vidmoly|supervideo|streamlare|vibuxer|hglink|dhcplay|filelions|vidnest|dropcdn|barmonrey|rpmvid|vidsrc|playmogo|embedseek|tplayer|vidsonic|vidsuper|primeload|fkplayer|embedshortener|paulinito|zilla-networks|acek-cdn|cloudwindow-route|mega\.nz|mega\.co\.nz)/i;
+  var DIRECT_EXT = /\.(m3u8|mp4|ts|mkv|webm|m4v|mov)(\?|#|$)/i;
+  var MEDIA_PATH = /(\/m3u8\/|\/hls\/|\/hls2\/|master\.m3u8|playlist\.m3u8|video\.m3u8|\.urlset\/|\/manifest)/i;
+  var isPlayable = function (s) {
+    if (!s || s.isEmbed === true) return false;
+    var u = String(s.url || '');
+    if (!/^https?:\/\//i.test(u)) return false;      // no magnet:, no local paths
+    if (DIRECT_EXT.test(u) || MEDIA_PATH.test(u)) return true;
+    return !EMBED_HOST.test(u);
+  };
+  // Some CDNs reject a Referer while accepting the bare URL (vimeos family);
+  // mp4upload wants its own direct URL as Referer.
+  var fixHeaders = function (s) {
+    if (!s || !s.url) return s;
+    var u = String(s.url).toLowerCase();
+    if (/vimeos\.|vms\.sh/.test(u)) {
+      var h = {};
+      for (var k in (s.headers || {})) {
+        if (!/^(referer|origin)$/i.test(k)) h[k] = s.headers[k];
+      }
+      s.headers = h;
+    } else if (/mp4upload\.com/.test(u)) {
+      s.headers = Object.assign({}, s.headers || {}, { Referer: s.url });
+    }
+    return s;
+  };
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      if (!Array.isArray(r)) return r;
+      return r.map(fixHeaders).filter(isPlayable);
+    });
+  };
+  wrapped.__DIRECT_ONLY__ = true;
+  module.exports.getStreams = wrapped;
+})();

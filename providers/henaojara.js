@@ -52,6 +52,27 @@ var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s
  return {name: pn+" - "+q+(r?" ✅":""), title: l+" - "+sr, quality: q, _resWeight:0, _sizeWeight:0};
 };
 
+/**
+ * Per-CDN hotlink rules, verified live (2026-10) with a header-matrix probe:
+ *  - vimeos.* / vms.sh : a request carrying ANY Referer/Origin is answered
+ *    with 403; the very same URL with no Referer returns the HLS manifest.
+ *  - mp4upload.com     : only its own direct URL is accepted as Referer
+ *    (a site Referer and no-Referer both return 403).
+ * Everything else keeps the headers the resolver produced.
+ */
+function sanitizePlaybackHeaders(url, headers) {
+  var h = {};
+  var src = headers || {};
+  for (var k in src) { if (Object.prototype.hasOwnProperty.call(src, k)) h[k] = src[k]; }
+  var u = String(url || "").toLowerCase();
+  if (/vimeos\.|vms\.sh/.test(u)) {
+    delete h.Referer; delete h.referer; delete h.Origin; delete h.origin;
+  } else if (/mp4upload\.com/.test(u)) {
+    h.Referer = String(url || "");
+  }
+  return h;
+}
+
 const cheerio = require("cheerio");
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
@@ -645,10 +666,10 @@ async function getStreams(tmdbId, mediaType, season, episode) {
                 title: `${serverName} \xB7 Direct`,
                 url: resolved,
                 quality: "720p",
-                headers: {
+                headers: sanitizePlaybackHeaders(resolved, {
                     "Referer": BASE_URL + "/",
                     "User-Agent": UA
-                }
+                })
             });
         } else {
             // Emit as embed — SKIP_HOSTS already filtered out truly dead hosts.
@@ -697,4 +718,60 @@ module.exports = { getStreams };
     _w.__PLAYABLE_WRAPPED__ = true;
     module.exports.getStreams = _w;
   }
+})();
+
+/* Nuvio cannot play isEmbed entries (embed pages, not media files): never
+ * return them. Direct m3u8/mp4 streams are unaffected. */
+(function () {
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__NO_EMBED__) return;
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      return Array.isArray(r) ? r.filter(function (s) { return !(s && s.isEmbed === true); }) : r;
+    });
+  };
+  wrapped.__NO_EMBED__ = true;
+  module.exports.getStreams = wrapped;
+})();
+/* Nuvio cannot play embed pages or isEmbed entries — return media URLs only. */
+(function () {
+  if (typeof module === 'undefined' || !module.exports) return;
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__DIRECT_ONLY__) return;
+  var EMBED_HOST = /(voe\.sx|voe\.|streamwish|strwish|hlswish|awish|wishfast|embedwish|hanerix|filemoon|moonembed|bysesukior|bysesukop|vidhide|minochinos|dintezuvio|morencius|movearnpre|luluvdo|uqload|doodstream|dood\.|ds2play|mixdrop|streamtape|waaw|goodstream|vimeos|fastream|mp4upload|ok\.ru|okcdn|odnoklassniki|embed69|dramiyos|premilkyway|vidmoly|supervideo|streamlare|vibuxer|hglink|dhcplay|filelions|vidnest|dropcdn|barmonrey|rpmvid|vidsrc|playmogo|embedseek|tplayer|vidsonic|vidsuper|primeload|fkplayer|embedshortener|paulinito|zilla-networks|acek-cdn|cloudwindow-route|mega\.nz|mega\.co\.nz)/i;
+  var DIRECT_EXT = /\.(m3u8|mp4|ts|mkv|webm|m4v|mov)(\?|#|$)/i;
+  var MEDIA_PATH = /(\/m3u8\/|\/hls\/|\/hls2\/|master\.m3u8|playlist\.m3u8|video\.m3u8|\.urlset\/|\/manifest)/i;
+  var isPlayable = function (s) {
+    if (!s || s.isEmbed === true) return false;
+    var u = String(s.url || '');
+    if (!/^https?:\/\//i.test(u)) return false;      // no magnet:, no local paths
+    if (DIRECT_EXT.test(u) || MEDIA_PATH.test(u)) return true;
+    return !EMBED_HOST.test(u);
+  };
+  // Some CDNs reject a Referer while accepting the bare URL (vimeos family);
+  // mp4upload wants its own direct URL as Referer.
+  var fixHeaders = function (s) {
+    if (!s || !s.url) return s;
+    var u = String(s.url).toLowerCase();
+    if (/vimeos\.|vms\.sh/.test(u)) {
+      var h = {};
+      for (var k in (s.headers || {})) {
+        if (!/^(referer|origin)$/i.test(k)) h[k] = s.headers[k];
+      }
+      s.headers = h;
+    } else if (/mp4upload\.com/.test(u)) {
+      s.headers = Object.assign({}, s.headers || {}, { Referer: s.url });
+    }
+    return s;
+  };
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      if (!Array.isArray(r)) return r;
+      return r.map(fixHeaders).filter(isPlayable);
+    });
+  };
+  wrapped.__DIRECT_ONLY__ = true;
+  module.exports.getStreams = wrapped;
 })();

@@ -55,8 +55,8 @@ var buildStreamLabel = streamLabels ? streamLabels.buildStreamLabel : function(s
 
 var cheerio = require('cheerio');
 var TMDB_API_KEY = "439c478a771f35c05022f9feabcca01c";
-var BASE_URL = "https://lamovie.cc";
-var API_URL = "https://lamovie.cc/wp-api/v1";
+var BASE_URL = "https://lamovie.org";
+var API_URL = "https://lamovie.org/wp-api/v1";
 var ANIME_COUNTRIES = ["JP", "CN", "KR"];
 var GENRE_ANIMATION = 16;
 var DEFAULT_HEADERS = {
@@ -379,8 +379,8 @@ function resolveDoodstream(embedUrl) {
   var embedHost = embedUrl.replace(/\/(d|f)\//, "/e/").replace("dsvplay.com", "d0000d.com");
   return get(embedHost, { 
     "User-Agent": UA, 
-    "Referer": "https://lamovie.cc/",
-    "Origin": "https://lamovie.cc"
+    "Referer": "https://lamovie.org/",
+    "Origin": "https://lamovie.org"
   }).then(function(html) {
     // Regex mejorado segun Rust: captura la ruta completa y el token final
     var match = html.match(/\$\.get\(['"](\/pass_md5\/[\w-]+\/([\w-]+))['"]/i);
@@ -450,7 +450,65 @@ function getIdBySlugApi(postType, slug) {
     return null;
   });
 }
+// The API's `type` field is the post-type slug ("movies"/"tvshows"/"animes");
+// the public permalinks use a different segment ("peliculas"/"series"/"animes").
+var PERMALINK_SEGMENT = { movies: "peliculas", movie: "peliculas", tvshows: "series", tvshow: "series", series: "series", animes: "animes", anime: "animes", episodios: "episodio" };
+function permalinkFor(postType, slug) {
+  var seg = PERMALINK_SEGMENT[String(postType || "movies").toLowerCase()] || "peliculas";
+  return BASE_URL + "/" + seg + "/" + slug + "/";
+}
+
+// The theme's HTML search page moved, but the JSON API still exposes an exact
+// search: /wp-api/v1/search?q= -> data.posts[] with slug/post_type/original_title.
+function searchApi(query) {
+  var url = API_URL + "/search?q=" + encodeURIComponent(query);
+  return get(url, { "Accept": "application/json", "Referer": BASE_URL + "/" }).then(function (data) {
+    var rows = (data && data.data && data.data.posts) || [];
+    return rows.map(function (p) {
+      var yr = (String(p.release_date || "").match(/^(\d{4})/) || [])[1]
+        || (String(p.title || "").match(/\((\d{4})\)/) || [])[1] || "";
+      return {
+        title: p.title || "",
+        original_title: p.original_title || p.title || "",
+        year: yr,
+        url: permalinkFor(p.type, p.slug),
+        slug: p.slug,
+        postType: p.type || "movies",
+        _id: p._id,
+      };
+    });
+  }).catch(function () { return []; });
+}
+
+function scorePosts(posts, title, originalTitle, year) {
+  if (!posts || !posts.length) return null;
+  var scored = [];
+  for (var i = 0; i < posts.length; i++) {
+    scored.push({ post: posts[i], score: scoreCandidate(posts[i].title || "", title, originalTitle, year) });
+  }
+  scored.sort(function (a, b) { return b.score - a.score; });
+  var best = scored[0];
+  if (best.score < 45) {
+    console.log("[LaMovie] Sin coincidencias (score: " + best.score.toFixed(1) + ")");
+    return null;
+  }
+  console.log('[LaMovie] Busqueda OK: "' + best.post.title + '" (score:' + best.score.toFixed(1) + ") url:" + best.post.url);
+  return { url: best.post.url, _id: best.post._id, postType: best.post.postType, title: best.post.title };
+}
+
 function searchLaMovie(title, originalTitle, year, postTypes) {
+  return searchApi(title).then(function (posts) {
+    if (!posts.length && originalTitle && normalizeTitle(originalTitle) !== normalizeTitle(title)) {
+      console.log('[LaMovie] Buscando con titulo original: "' + originalTitle + '"');
+      return searchApi(originalTitle).then(function (p2) { return scorePosts(p2, title, originalTitle, year); });
+    }
+    return scorePosts(posts, title, originalTitle, year);
+  }).catch(function (err) {
+    console.log("[LaMovie] Error busqueda: " + err.message);
+    return null;
+  });
+}
+function searchLaMovieLegacyHtml(title, originalTitle, year, postTypes) {
   var url = BASE_URL + "/search?keyword=" + encodeURIComponent(title);
   return get(url, { "Referer": BASE_URL + "/" }).then(function (html) {
     var $ = cheerio.load(html);
@@ -561,6 +619,157 @@ function processEmbeds(embeds) {
   }
   return next(0);
 }
+// ─── JSON-API path (current site) ───────────────────────────────────────────
+// The site now renders the player client-side and loads its servers from
+// /wp-api/v1/player?postId=<id>, which returns real embed URLs
+// (voe.sx, vimeos, goodstream, doodstream). Series need the *episode* post id
+// from /wp-api/v1/single/episodes/list.
+var API_TYPE_SEGMENT = { movies: "movies", tvshows: "tvshows", animes: "animes" };
+
+function apiListing(type, page, perPage) {
+  var url = API_URL + "/listing/" + type + "?page=" + page + "&orderBy=latest&order=desc&postType=" + type + "&postsPerPage=" + perPage;
+  return get(url, { "Accept": "application/json", "Referer": BASE_URL + "/" }).then(function (d) {
+    var posts = (d && d.data && d.data.posts) || [];
+    return posts.map(function (p) {
+      return {
+        title: p.title || "",
+        original_title: p.original_title || p.title || "",
+        year: (String(p.title || "").match(/\((\d{4})\)/) || [])[1] || "",
+        url: permalinkFor(p.type || type, p.slug),
+        slug: p.slug,
+        postType: p.type || type,
+        _id: p._id,
+      };
+    });
+  }).catch(function () { return []; });
+}
+
+/** Robust catalog lookup: JSON search first, then a local scan of the listings. */
+function apiFindPost(titles, mediaType) {
+  var types = mediaType === "movie" ? ["movies"] : ["tvshows", "animes"];
+  var found = null;
+  var chain = Promise.resolve();
+  (titles || []).forEach(function (t) {
+    chain = chain.then(function () {
+      if (found || !t) return;
+      return searchApi(t).then(function (posts) {
+        var usable = (posts || []).filter(function (p) { return types.indexOf(p.postType) !== -1; });
+        if (!usable.length && mediaType === "movie") usable = posts || [];
+        if (!usable.length) return;
+        var best = scorePosts(usable, t, t, "");
+        if (best && best._id) found = best;
+      });
+    });
+  });
+  return chain.then(function () {
+    if (found) return found;
+    // local scan of the newest catalog pages
+    var pages = [];
+    types.forEach(function (type) {
+      for (var page = 1; page <= 3; page++) pages.push([type, page]);
+    });
+    var scan = Promise.resolve();
+    pages.forEach(function (spec) {
+      scan = scan.then(function () {
+        if (found) return;
+        return apiListing(spec[0], spec[1], 60).then(function (posts) {
+          for (var i = 0; i < (titles || []).length && !found; i++) {
+            var best = scorePosts(posts, titles[i], titles[i], "");
+            if (best && best._id) found = best;
+          }
+        });
+      });
+    });
+    return scan.then(function () { return found; });
+  });
+}
+
+function apiEpisodeId(seriesId, season, episode) {
+  var url = API_URL + "/single/episodes/list?_id=" + encodeURIComponent(seriesId) + "&season=" + (season || 1) + "&page=1&postsPerPage=100";
+  return get(url, { "Accept": "application/json", "Referer": BASE_URL + "/" }).then(function (d) {
+    var posts = (d && d.data && d.data.posts) || [];
+    for (var i = 0; i < posts.length; i++) {
+      if (String(posts[i].season_number) === String(season || 1) && String(posts[i].episode_number) === String(episode || 1)) {
+        return String(posts[i]._id);
+      }
+    }
+    return posts.length ? String(posts[0]._id) : null;
+  }).catch(function () { return null; });
+}
+
+function apiPlayerEmbeds(postId) {
+  var url = API_URL + "/player?postId=" + encodeURIComponent(postId) + "&demo=0";
+  return get(url, { "Accept": "application/json", "Referer": BASE_URL + "/" }).then(function (d) {
+    return (d && d.data && d.data.embeds) || [];
+  }).catch(function () { return []; });
+}
+
+function resolveEmbedsViaShared(embeds) {
+  var resolvers = null;
+  try { resolvers = require("./cdn_resolvers.js"); } catch (e) {}
+  var out = [];
+  var chain = Promise.resolve();
+  (embeds || []).slice(0, 8).forEach(function (e) {
+    chain = chain.then(function () {
+      var url = e.url || e.link;
+      if (!url) return;
+      var finish = function (resolved) {
+        if (!resolved || !resolved.url) return;
+        var hdrs = resolved.headers || { Referer: BASE_URL + "/", "User-Agent": DEFAULT_HEADERS["User-Agent"] };
+        // vimeos.* rejects any Referer (403) — send none; mp4upload wants its own URL
+        if (/vimeos\.|vms\.sh/.test(resolved.url)) {
+          hdrs = Object.assign({}, hdrs);
+          delete hdrs.Referer; delete hdrs.referer; delete hdrs.Origin; delete hdrs.origin;
+        } else if (/mp4upload\.com/.test(resolved.url)) {
+          hdrs = Object.assign({}, hdrs, { Referer: resolved.url });
+        }
+        out.push({
+          name: "LaMovie - " + (resolved.quality || "1080p") + " ✅",
+          title: (e.lang || "Latino") + " - " + (e.server || resolved.server || "Server"),
+          url: resolved.url,
+          quality: resolved.quality || "1080p",
+          isReal: true,
+          provider: e.server || resolved.server || "LaMovie",
+          language: e.lang || "Latino",
+          headers: hdrs,
+        });
+      };
+      if (resolvers && typeof resolvers.resolveEmbed === "function") {
+        return resolvers.resolveEmbed(url).then(finish).catch(function () {});
+      }
+      return undefined;
+    });
+  });
+  return chain.then(function () { return out; });
+}
+
+/** API path: search -> (episode id) -> player API -> resolve embeds. */
+function apiStreamsFor(info, mediaType, season, episode) {
+  var titles = [info.title, info.originalTitle].filter(function (v, i, a) { return v && a.indexOf(v) === i; });
+  return apiFindPost(titles, mediaType).then(function (post) {
+    if (!post || !post._id) return [];
+    console.log('[LaMovie] API match: "' + post.title + '" (id ' + post._id + ")");
+    var idPromise = Promise.resolve(String(post._id));
+    if (mediaType !== "movie" && season && episode) {
+      idPromise = apiEpisodeId(post._id, season, episode).then(function (epid) {
+        if (epid) console.log("[LaMovie] Episodio S" + season + "E" + episode + " id:" + epid);
+        return epid;
+      });
+    }
+    return idPromise.then(function (postId) {
+      if (!postId) return [];
+      return apiPlayerEmbeds(postId).then(function (embeds) {
+        if (!embeds.length) return [];
+        console.log("[LaMovie] " + embeds.length + " embed(s) desde la API");
+        return resolveEmbedsViaShared(embeds);
+      });
+    });
+  }).catch(function (e) {
+    console.log("[LaMovie] API path fallo: " + e.message);
+    return [];
+  });
+}
+
 function getStreams(tmdbId, mediaType, season, episode) {
   var resolvedType = mediaType === "series" ? "tv" : mediaType || "movie";
   try {
@@ -568,6 +777,19 @@ function getStreams(tmdbId, mediaType, season, episode) {
     return getTmdbInfo(tmdbId, resolvedType).then(function (info) {
       if (!info || !info.title) return [];
       console.log('[LaMovie] TMDB: "' + info.title + '" (' + info.year + ")");
+      return apiStreamsFor(info, resolvedType, season, episode).then(function (apiStreams) {
+        if (apiStreams && apiStreams.length) return apiStreams;
+        console.log("[LaMovie] API sin resultados, usando scraping legacy");
+        return legacyStreams(info, resolvedType, season, episode);
+      });
+    });
+  } catch (e) {
+    return Promise.resolve([]);
+  }
+}
+
+function legacyStreams(info, resolvedType, season, episode) {
+  return Promise.resolve().then(function () {
       return findContent(info.title, info.originalTitle, info.year, resolvedType, info.genres, info.originCountries).then(function (found) {
         if (!found || !found.url) {
           console.log("[LaMovie] No encontrado");
@@ -681,10 +903,6 @@ function getStreams(tmdbId, mediaType, season, episode) {
       console.log("[LaMovie] Error: " + err.message);
       return [];
     });
-  } catch (err) {
-    console.log("[LaMovie] Error fatal: " + err.message);
-    return Promise.resolve([]);
-  }
 }
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -712,3 +930,44 @@ if (typeof module !== "undefined" && module.exports) {
 } else {
   global.getStreams = getStreams;
 }
+/* Nuvio cannot play embed pages or isEmbed entries — return media URLs only. */
+(function () {
+  if (typeof module === 'undefined' || !module.exports) return;
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__DIRECT_ONLY__) return;
+  var EMBED_HOST = /(voe\.sx|voe\.|streamwish|strwish|hlswish|awish|wishfast|embedwish|hanerix|filemoon|moonembed|bysesukior|bysesukop|vidhide|minochinos|dintezuvio|morencius|movearnpre|luluvdo|uqload|doodstream|dood\.|ds2play|mixdrop|streamtape|waaw|goodstream|vimeos|fastream|mp4upload|ok\.ru|okcdn|odnoklassniki|embed69|dramiyos|premilkyway|vidmoly|supervideo|streamlare|vibuxer|hglink|dhcplay|filelions|vidnest|dropcdn|barmonrey|rpmvid|vidsrc|playmogo|embedseek|tplayer|vidsonic|vidsuper|primeload|fkplayer|embedshortener|paulinito|zilla-networks|acek-cdn|cloudwindow-route|mega\.nz|mega\.co\.nz)/i;
+  var DIRECT_EXT = /\.(m3u8|mp4|ts|mkv|webm|m4v|mov)(\?|#|$)/i;
+  var MEDIA_PATH = /(\/m3u8\/|\/hls\/|\/hls2\/|master\.m3u8|playlist\.m3u8|video\.m3u8|\.urlset\/|\/manifest)/i;
+  var isPlayable = function (s) {
+    if (!s || s.isEmbed === true) return false;
+    var u = String(s.url || '');
+    if (!/^https?:\/\//i.test(u)) return false;      // no magnet:, no local paths
+    if (DIRECT_EXT.test(u) || MEDIA_PATH.test(u)) return true;
+    return !EMBED_HOST.test(u);
+  };
+  // Some CDNs reject a Referer while accepting the bare URL (vimeos family);
+  // mp4upload wants its own direct URL as Referer.
+  var fixHeaders = function (s) {
+    if (!s || !s.url) return s;
+    var u = String(s.url).toLowerCase();
+    if (/vimeos\.|vms\.sh/.test(u)) {
+      var h = {};
+      for (var k in (s.headers || {})) {
+        if (!/^(referer|origin)$/i.test(k)) h[k] = s.headers[k];
+      }
+      s.headers = h;
+    } else if (/mp4upload\.com/.test(u)) {
+      s.headers = Object.assign({}, s.headers || {}, { Referer: s.url });
+    }
+    return s;
+  };
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      if (!Array.isArray(r)) return r;
+      return r.map(fixHeaders).filter(isPlayable);
+    });
+  };
+  wrapped.__DIRECT_ONLY__ = true;
+  module.exports.getStreams = wrapped;
+})();

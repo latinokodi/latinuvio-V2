@@ -333,3 +333,18 @@ module.exports = { getStreams };
     module.exports.getStreams = _w;
   }
 })();
+
+/* Nuvio cannot play isEmbed entries (embed pages, not media files): never
+ * return them. Direct m3u8/mp4 streams are unaffected. */
+(function () {
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__NO_EMBED__) return;
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      return Array.isArray(r) ? r.filter(function (s) { return !(s && s.isEmbed === true); }) : r;
+    });
+  };
+  wrapped.__NO_EMBED__ = true;
+  module.exports.getStreams = wrapped;
+})();

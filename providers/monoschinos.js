@@ -65,13 +65,25 @@ const HEADERS = {
     "Connection": "keep-alive"
 };
 
-function norm(s) { return (s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+// Accent/Ñ-insensitive normalisation. A plain [^a-z0-9] strip deletes "ñ"
+// instead of folding it to "n", which breaks every accented Spanish title.
+function stripAccents(s) {
+    try { return s.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); }
+    catch (e) {
+        return s.replace(/[áàäâã]/g, "a").replace(/[éèëê]/g, "e").replace(/[íìïî]/g, "i")
+                .replace(/[óòöôõ]/g, "o").replace(/[úùüû]/g, "u").replace(/ñ/g, "n").replace(/ç/g, "c");
+    }
+}
+function norm(s) { return stripAccents((s || "").toString().toLowerCase()).replace(/[^a-z0-9]/g, ""); }
 
 async function getTmdbInfo(id, type) {
     try {
         const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=439c478a771f35c05022f9feabcca01c&language=es-MX`;
         const res = await fetch(url, { headers: HEADERS }).then(r => r.json());
-        return { title: type === "movie" ? (res.title || res.original_title) : (res.name || res.original_name) };
+        return {
+            title: type === "movie" ? (res.title || res.original_title) : (res.name || res.original_name),
+            originalTitle: type === "movie" ? (res.original_title || res.title) : (res.original_name || res.name),
+        };
     } catch (e) { return null; }
 }
 
@@ -173,13 +185,25 @@ async function getStreams(id, type, season, episode, title) {
     if (!id && !title) return [];
 
     try {
-        let searchTitle = title;
-        if (id) { const info = await getTmdbInfo(id, type); if (info) searchTitle = info.title || title; }
-        if (!searchTitle) return [];
+        // Try every title we have: the caller's title (often the site's own
+        // romaji/Spanish name), then the TMDB Spanish and English names.
+        const candidates = [];
+        if (title) candidates.push(title);
+        if (id) {
+            const info = await getTmdbInfo(id, type);
+            if (info) {
+                for (const t of [info.title, info.originalTitle]) if (t && !candidates.includes(t)) candidates.push(t);
+            }
+        }
+        if (!candidates.length) return [];
 
-        const seriesUrl = await searchSite(searchTitle);
-        if (!seriesUrl) { console.warn(`[MonosChinos] Not found: "${searchTitle}"`); return []; }
-        console.warn(`[MonosChinos] Series: ${seriesUrl}`);
+        let searchTitle = candidates[0], seriesUrl = null;
+        for (const cand of candidates) {
+            seriesUrl = await searchSite(cand);
+            if (seriesUrl) { searchTitle = cand; break; }
+        }
+        if (!seriesUrl) { console.warn(`[MonosChinos] Not found: "${candidates.join('" / "')}"`); return []; }
+        console.warn(`[MonosChinos] Series: ${seriesUrl} (via "${searchTitle}")`);
 
         // For TV: resolve episode URL via AJAX
         let pageUrl = seriesUrl;
@@ -195,18 +219,32 @@ async function getStreams(id, type, season, episode, title) {
         console.warn(`[MonosChinos] Embeds: ${embeds.length}`);
 
         const { resolveEmbed } = require("./embed69.js");
+        let shared = null;
+        try { shared = require("./cdn_resolvers.js"); } catch (e) {}
         const streams = [];
 
         for (const embedUrl of embeds) {
             const server = (embedUrl.match(/:\/\/(?:www\.)?([^.]+)\./) || [])[1] || "?";
-            const result = await resolveEmbed(embedUrl, server);
+            let result = null;
+            try { result = await resolveEmbed(embedUrl, server); } catch (e) {}
+            // embed69 echoes the embed URL back when it cannot resolve it; the
+            // shared module covers the newer mirrors (dhcplay, movearnpre,
+            // luluvdo, uqload, streamtape, voe, streamwish, ...).
+            const unresolved = !result || !result.url || result.url === embedUrl
+                || /\/embed[-/]|\/e\/|\/v\/|\/f\/|\/file\//i.test(String(result.url));
+            if (unresolved && shared && typeof shared.resolveEmbed === "function") {
+                try {
+                    const alt = await shared.resolveEmbed(embedUrl);
+                    if (alt && alt.url) result = alt;
+                } catch (e) {}
+            }
             if (result && result.url && result.url.startsWith("http")) {
                 streams.push({
                     provider: "MonosChinos",
                     title: server,
                     url: result.url,
                     quality: result.quality || "HD",
-                    headers: { Referer: embedUrl, "User-Agent": UA }
+                    headers: result.headers || { Referer: embedUrl, "User-Agent": UA }
                 });
                 console.warn(`[MonosChinos] Resolved: ${server} → ${result.url.slice(0, 70)}`);
             }
@@ -221,3 +259,44 @@ async function getStreams(id, type, season, episode, title) {
 }
 
 module.exports = { getStreams };
+/* Nuvio cannot play embed pages or isEmbed entries — return media URLs only. */
+(function () {
+  if (typeof module === 'undefined' || !module.exports) return;
+  var _nuvioOrig = module.exports.getStreams;
+  if (typeof _nuvioOrig !== 'function' || _nuvioOrig.__DIRECT_ONLY__) return;
+  var EMBED_HOST = /(voe\.sx|voe\.|streamwish|strwish|hlswish|awish|wishfast|embedwish|hanerix|filemoon|moonembed|bysesukior|bysesukop|vidhide|minochinos|dintezuvio|morencius|movearnpre|luluvdo|uqload|doodstream|dood\.|ds2play|mixdrop|streamtape|waaw|goodstream|vimeos|fastream|mp4upload|ok\.ru|okcdn|odnoklassniki|embed69|dramiyos|premilkyway|vidmoly|supervideo|streamlare|vibuxer|hglink|dhcplay|filelions|vidnest|dropcdn|barmonrey|rpmvid|vidsrc|playmogo|embedseek|tplayer|vidsonic|vidsuper|primeload|fkplayer|embedshortener|paulinito|zilla-networks|acek-cdn|cloudwindow-route|mega\.nz|mega\.co\.nz)/i;
+  var DIRECT_EXT = /\.(m3u8|mp4|ts|mkv|webm|m4v|mov)(\?|#|$)/i;
+  var MEDIA_PATH = /(\/m3u8\/|\/hls\/|\/hls2\/|master\.m3u8|playlist\.m3u8|video\.m3u8|\.urlset\/|\/manifest)/i;
+  var isPlayable = function (s) {
+    if (!s || s.isEmbed === true) return false;
+    var u = String(s.url || '');
+    if (!/^https?:\/\//i.test(u)) return false;      // no magnet:, no local paths
+    if (DIRECT_EXT.test(u) || MEDIA_PATH.test(u)) return true;
+    return !EMBED_HOST.test(u);
+  };
+  // Some CDNs reject a Referer while accepting the bare URL (vimeos family);
+  // mp4upload wants its own direct URL as Referer.
+  var fixHeaders = function (s) {
+    if (!s || !s.url) return s;
+    var u = String(s.url).toLowerCase();
+    if (/vimeos\.|vms\.sh/.test(u)) {
+      var h = {};
+      for (var k in (s.headers || {})) {
+        if (!/^(referer|origin)$/i.test(k)) h[k] = s.headers[k];
+      }
+      s.headers = h;
+    } else if (/mp4upload\.com/.test(u)) {
+      s.headers = Object.assign({}, s.headers || {}, { Referer: s.url });
+    }
+    return s;
+  };
+  var wrapped = function () {
+    var args = arguments, self = this;
+    return Promise.resolve(_nuvioOrig.apply(self, args)).then(function (r) {
+      if (!Array.isArray(r)) return r;
+      return r.map(fixHeaders).filter(isPlayable);
+    });
+  };
+  wrapped.__DIRECT_ONLY__ = true;
+  module.exports.getStreams = wrapped;
+})();

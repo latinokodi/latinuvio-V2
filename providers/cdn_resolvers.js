@@ -310,22 +310,117 @@ async function resolveVidara(embedUrl) {
 }
 
 /**
+ * Embed-shortener JWT unwrap.
+ *
+ * Several catalog APIs (doramasflix `getEpisodeLinks`, peliculasflix
+ * `getMovieLinks`) hand out links of the form
+ *   https://embedshortener.co/e/<JWT>   or   https://fkplayer.xyz/e/<JWT>
+ * whose payload carries the real embed either as `embed` or as `link`
+ * (base64). Unwrapping it turns an opaque host into voe.sx / flaswish /
+ * streamwish / primeload, which the resolvers below already understand.
+ */
+function base64Decode(str) {
+  try {
+    if (typeof atob === 'function') return atob(String(str).replace(/-/g, '+').replace(/_/g, '/'));
+  } catch (e) {}
+  try {
+    if (typeof Buffer !== 'undefined') return Buffer.from(String(str).replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+  } catch (e) {}
+  return '';
+}
+
+function decodeEmbedShortener(url) {
+  const u = String(url || '');
+  if (!/embedshortener\.|fkplayer\.|shortener|fkplayer/i.test(u)) return null;
+  const tok = u.split('/e/').pop().split(/[?#]/)[0];
+  const parts = tok.split('.');
+  if (parts.length < 2) return null;
+  let payload = null;
+  try { payload = JSON.parse(base64Decode(parts[1])); } catch (e) { return null; }
+  if (!payload) return null;
+  if (payload.embed && /^https?:/i.test(payload.embed)) return payload.embed;
+  if (payload.link) {
+    const decoded = base64Decode(payload.link);
+    if (/^https?:/i.test(decoded)) return decoded;
+  }
+  return null;
+}
+
+/** primeload.co: /embed/<id> exposes random StreamWish-family mirror hosts. */
+async function resolvePrimeload(embedUrl) {
+  const html = await fetchPage(embedUrl, 'https://embedshortener.co/');
+  if (!html) return null;
+  const mirrors = [...new Set([...html.matchAll(/["'](\/\/[a-z0-9.-]+\.[a-z]{2,}\/[A-Za-z0-9_-]{6,}\/\d+)["']/gi)].map(m => 'https:' + m[1]))];
+  for (const mirror of mirrors.slice(0, 4)) {
+    try {
+      const page = await fetchPage(mirror, embedUrl);
+      if (!page) continue;
+      const direct = extractM3u8(page);
+      if (direct) return { url: direct, server: 'Primeload', quality: '1080p', headers: { 'User-Agent': UA, Referer: mirror } };
+      // some builds hide the playlist in a base64 blob
+      for (const m of page.matchAll(/atob\(\s*["']([A-Za-z0-9+/=]{40,})["']\s*\)/g)) {
+        const dec = base64Decode(m[1]);
+        const u2 = extractM3u8(dec);
+        if (u2) return { url: u2, server: 'Primeload', quality: '1080p', headers: { 'User-Agent': UA, Referer: mirror } };
+      }
+    } catch (e) {}
+  }
+  return null;
+}
+
+/**
+ * Generic wrapper-player resolver: some sites embed their own player page
+ * (e.g. paulinito.com/player/<id>/ from pelis182's universal-vast-player) which
+ * simply prints the final m3u8/mp4 in its source. Fetch and extract it.
+ */
+async function resolveGenericPage(embedUrl) {
+  const html = await fetchPage(embedUrl, embedUrl);
+  if (!html) return null;
+  let m3u8 = extractM3u8(html);
+  if (!m3u8) {
+    const m = html.match(/(?:file|source|src)\s*[:=]\s*["']([^"']+\.(?:m3u8|mp4)[^"']*)["']/i);
+    if (m) m3u8 = m[1];
+  }
+  if (!m3u8) {
+    const rel = html.match(/["'](\/\/[^"'\s]+\.m3u8[^"'\s]*)["']/i);
+    if (rel) m3u8 = 'https:' + rel[1];
+  }
+  if (!m3u8) return null;
+  if (m3u8.startsWith('//')) m3u8 = 'https:' + m3u8;
+  if (!/^https?:/i.test(m3u8)) {
+    try { m3u8 = new URL(m3u8, embedUrl).href; } catch (e) { return null; }
+  }
+  let host = '';
+  try { host = new URL(embedUrl).origin + '/'; } catch (e) {}
+  return { url: m3u8, server: 'Wrapper', quality: '1080p', headers: { 'User-Agent': UA, Referer: host || embedUrl } };
+}
+
+/**
  * Generic dispatcher: detects host and calls the matching resolver, validates the result.
  */
 async function resolveEmbed(embedUrl) {
+  // unwrap embed-shortener JWTs first
+  const unwrapped = decodeEmbedShortener(embedUrl);
+  if (unwrapped) {
+    const inner = await resolveEmbed(unwrapped);
+    if (inner) return inner;
+  }
   const u = (embedUrl || '').toLowerCase();
   let s = null;
   if (u.includes('uqload') || u.includes('oneupload')) s = await resolveUqload(embedUrl);
   else if (u.includes('goodstream')) s = await resolveGoodstream(embedUrl);
   else if (u.includes('vimeos')) s = await resolveVimeos(embedUrl);
+  else if (u.includes('primeload')) s = await resolvePrimeload(embedUrl);
   else if (u.includes('bysezoxexe')) s = await resolveBysezoxexe(embedUrl);
   else if (u.includes('audinifer')) s = await resolveAudinifer(embedUrl);
   else if (u.includes('vidara')) s = await resolveVidara(embedUrl);
   else if (u.includes('voe')) s = await resolveVoe(embedUrl);
-  else if (u.includes('streamwish') || u.includes('hlswish') || u.includes('wishfast') || u.includes('awish') || u.includes('filelions') || u.includes('wishembed')) s = await resolveStreamWish(embedUrl);
-  else if (u.includes('vidhide') || u.includes('dintezuvio') || u.includes('minochinos')) s = await resolveVidHide(embedUrl);
+  else if (u.includes('flaswish') || u.includes('hglink') || u.includes('hglamioz') || u.includes('streamwish') || u.includes('hlswish') || u.includes('wishfast') || u.includes('awish') || u.includes('filelions') || u.includes('wishembed') || u.includes('dhcplay')) s = await resolveStreamWish(embedUrl);
+  else if (u.includes('vidhide') || u.includes('dintezuvio') || u.includes('minochinos') || u.includes('morencius') || u.includes('movearnpre') || u.includes('luluvdo')) s = await resolveVidHide(embedUrl);
   else if (u.includes('dood') || u.includes('ds2play')) s = await resolveDood(embedUrl);
   else if (u.includes('ok.ru') || u.includes('odnoklassniki')) s = await resolveOkru(embedUrl);
+  // last resort: treat the URL as a wrapper player page and scrape the media URL
+  if (!s) s = await resolveGenericPage(embedUrl);
   if (s && s.url && s.url !== embedUrl && !isKnownFakeDirectUrl(s.url)) return await validateStream(s);
   return null;
 }
@@ -334,4 +429,5 @@ module.exports = {
   resolveUqload, resolveGoodstream, resolveVimeos, resolveBysezoxexe, resolveAudinifer,
   resolveVidara, resolveVoe, resolveStreamWish, resolveVidHide, resolveDood, resolveOkru,
   resolveEmbed, validateStream, isPlayableMediaUrl, isKnownFakeDirectUrl, detectHlsQuality, fetchPage,
+  decodeEmbedShortener, resolvePrimeload, resolveGenericPage, base64Decode,
 };
