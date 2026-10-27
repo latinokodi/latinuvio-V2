@@ -481,6 +481,66 @@ function looksEmbed(url) {
 
 // ─── Main ───────────────────────────────────────────────────────────────────
 
+// ─── DooPlay player options (current theme) ─────────────────────────────────
+// The theme no longer prints embed URLs in the page: it renders a decoy
+// (#fakeplayer -> /reproducir.html affiliate redirect) and lists the real
+// sources as <li class="dooplay_player_option" data-post data-type data-nume>.
+// The URL is fetched from /wp-admin/admin-ajax.php (action=doo_player_ajax).
+function extractPlayerOptions(html) {
+    const opts = [];
+    const re = /<li[^>]*class=['"][^'"]*dooplay_player_option[^'"]*['"][^>]*>/gi;
+    let m;
+    while ((m = re.exec(html)) !== null) {
+        const tag = m[0];
+        const post = (tag.match(/data-post=['"]([^'"]+)['"]/i) || [])[1];
+        const nume = (tag.match(/data-nume=['"]([^'"]+)['"]/i) || [])[1];
+        const type = (tag.match(/data-type=['"]([^'"]+)['"]/i) || [])[1];
+        if (!post || !nume || !type) continue;
+        if (String(nume).toLowerCase() === "trailer") continue;   // YouTube trailer, not a source
+        const label = (m[0].match(/<span[^>]*class=['"]title['"][^>]*>([^<]{0,60})/i) || [])[1] || "";
+        opts.push({ post, nume, type, label: label.trim() });
+    }
+    return opts;
+}
+
+async function fetchDooPlayerEmbed(opt, pageUrl) {
+    const origin = (() => { try { return new URL(pageUrl).origin; } catch (e) { return HOST.replace(/\/$/, ""); } })();
+    const body = `action=doo_player_ajax&post=${encodeURIComponent(opt.post)}&nume=${encodeURIComponent(opt.nume)}&type=${encodeURIComponent(opt.type)}`;
+    try {
+        const res = await fetch(`${origin}/wp-admin/admin-ajax.php`, {
+            method: "POST",
+            headers: {
+                "User-Agent": UA,
+                "Referer": pageUrl,
+                "X-Requested-With": "XMLHttpRequest",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                "Accept": "*/*",
+            },
+            body,
+        });
+        if (!res.ok) return null;
+        const txt = await res.text();
+        let json = null;
+        try { json = JSON.parse(txt); } catch (e) { return null; }
+        const embed = json && json.embed_url;
+        return embed && /^https?:/i.test(embed) ? embed : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function resolveShared(embedUrl) {
+    try {
+        const cr = require("./cdn_resolvers.js");
+        if (cr && typeof cr.resolveEmbed === "function") {
+            const s = await cr.resolveEmbed(embedUrl);
+            if (s && s.url) return { url: s.url, quality: s.quality || "1080p", headers: s.headers || { Referer: embedUrl, "User-Agent": UA }, server: s.server || "Embed" };
+        }
+    } catch (e) {}
+    return null;
+}
+
+// ─── Entry point ────────────────────────────────────────────────────────────
 async function getStreams(id, type, season, episode, title) {
     console.warn(`[Pelisyseries] Resolving: ${id} Type=${type}${type === "tv" ? ` S${season}E${episode}` : ""} (${title || "?"})`);
 
@@ -563,6 +623,44 @@ async function getStreams(id, type, season, episode, title) {
         const pageHtml = await fetchPage(targetUrl);
         if (!pageHtml) {
             console.warn("[Pelisyseries] Could not load content page");
+            return [];
+        }
+
+        // Step 5a: current DooPlay theme — real sources come from admin-ajax
+        const playerOpts = extractPlayerOptions(pageHtml);
+        if (playerOpts.length) {
+            console.warn(`[Pelisyseries] ${playerOpts.length} player option(s) on page`);
+            const dooStreams = [];
+            const seen = new Set();
+            // Bound the work: some option hosts are dead and each attempt can
+            // burn a timeout. Six options is plenty to find a live source.
+            const deadline = Date.now() + 45000;
+            for (const opt of playerOpts.slice(0, 6)) {
+                if (Date.now() > deadline) { console.warn("[Pelisyseries] Option budget exhausted"); break; }
+                const embedUrl = await fetchDooPlayerEmbed(opt, targetUrl);
+                if (!embedUrl || seen.has(embedUrl)) continue;
+                seen.add(embedUrl);
+                const resolved = await resolveShared(embedUrl) || (await (async () => {
+                    const direct = await resolveEmbed(embedUrl, targetUrl);
+                    return direct && direct.startsWith("http") ? { url: direct, quality: "1080p", headers: { Referer: embedUrl, "User-Agent": UA } } : null;
+                })());
+                if (!resolved) { console.warn(`[Pelisyseries] unresolved option ${opt.nume}: ${embedUrl.slice(0, 60)}`); continue; }
+                dooStreams.push({
+                    provider: "Pelisyseries",
+                    title: `${opt.label || ("Opcion " + opt.nume)} (${opt.type})`,
+                    url: resolved.url,
+                    quality: resolved.quality || "1080p",
+                    headers: resolved.headers,
+                });
+                console.warn(`[Pelisyseries] Resolved option ${opt.nume} → ${String(resolved.url).slice(0, 70)}`);
+            }
+            if (dooStreams.length) {
+                console.warn(`[Pelisyseries] Total streams: ${dooStreams.length}`);
+                return dooStreams;
+            }
+            // Options existed but none resolved: the page carries no other source
+            // list, so skip the slow legacy scrape.
+            console.warn("[Pelisyseries] Player options present but none resolvable");
             return [];
         }
 

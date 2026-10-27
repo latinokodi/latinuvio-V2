@@ -58,6 +58,16 @@ function extractM3u8(text) {
   return m ? m[0].replace(/\\u0026/g, '&').replace(/\\\//g, '/') : null;
 }
 
+/**
+ * Embed hosts verified dead (whole player path 404s even in a real browser).
+ * Skipping them keeps a provider from burning its timeout budget on sources
+ * that cannot resolve. Re-check before assuming this is permanent.
+ */
+const DEAD_EMBED_HOSTS = /(?:zembed\.to)/i;
+function isDeadEmbedHost(url) {
+  return DEAD_EMBED_HOSTS.test(String(url || ''));
+}
+
 function isPlayableMediaUrl(u) {
   const s = (u || '').toLowerCase();
   return /\.m3u8(\?|$)/.test(s) || /\.mp4(\?|$)/.test(s) || /\.mpd(\?|$)/.test(s) || /\.mkv(\?|$)/.test(s) || /\/hls2?\//.test(s) || /\/master\.m3u8/.test(s);
@@ -399,6 +409,8 @@ async function resolveGenericPage(embedUrl) {
  * Generic dispatcher: detects host and calls the matching resolver, validates the result.
  */
 async function resolveEmbed(embedUrl) {
+  // hosts whose whole player path is gone — fail fast instead of timing out
+  if (isDeadEmbedHost(embedUrl)) return null;
   // unwrap embed-shortener JWTs first
   const unwrapped = decodeEmbedShortener(embedUrl);
   if (unwrapped) {

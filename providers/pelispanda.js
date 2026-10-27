@@ -2748,6 +2748,57 @@ var require_extractor = __commonJS({
     var { resolveEmbed } = require_resolvers();
     var { validateStream } = require_m3u8();
     var { fetchJson, getSessionUA } = require_http();
+    // ---------------------------------------------------------------------------
+    // Single point of truth for the catalog origin.
+    // 2026-10-27 outage: pelispanda.org (and its TMDB helper tmdb.pelispanda.org)
+    // answers Cloudflare 522 "origin unreachable" on every path. The zone is
+    // still proxied (A 104.21.52.164 / 172.67.201.84) and pelispanda.com still
+    // 301s here, so the brand has NOT moved: there is no mirror to re-point at
+    // (www.pelispanda.io is a parking lander, pelispanda.net only answers "OK"
+    // on every path, .tv/.la/.me/.to/... do not resolve).
+    // When the operator brings the origin back, this is the only line to touch.
+    // ---------------------------------------------------------------------------
+    var PELISPANDA_BASE = "https://pelispanda.org";
+    var ORIGIN_PROBE_TIMEOUT_MS = 8e3;
+    var ORIGIN_PROBE_TTL_MS = 6e5;
+    var originState = { checkedAt: 0, down: false, detail: "unknown" };
+    function checkOrigin() {
+      return __async(this, null, function* () {
+        if (originState.down && Date.now() - originState.checkedAt < ORIGIN_PROBE_TTL_MS)
+          return originState;
+        var controller = typeof AbortController === "function" ? new AbortController() : null;
+        var timer = controller ? setTimeout(function() {
+          try {
+            controller.abort();
+          } catch (e) {
+          }
+        }, ORIGIN_PROBE_TIMEOUT_MS) : null;
+        try {
+          var res = yield fetch(PELISPANDA_BASE + "/", {
+            headers: {
+              "User-Agent": getSessionUA(),
+              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+              "Accept-Language": "es-MX,es;q=0.9"
+            },
+            redirect: "follow",
+            signal: controller ? controller.signal : void 0
+          });
+          if (timer)
+            clearTimeout(timer);
+          var down = res.status >= 500 || res.status === 403;
+          originState = { checkedAt: Date.now(), down, detail: "HTTP " + res.status };
+        } catch (e) {
+          if (timer)
+            clearTimeout(timer);
+          originState = {
+            checkedAt: Date.now(),
+            down: true,
+            detail: e && e.name === "AbortError" ? "sin respuesta en " + ORIGIN_PROBE_TIMEOUT_MS / 1e3 + "s" : e && e.message
+          };
+        }
+        return originState;
+      });
+    }
     function getFallbackTitle(tmdbId, mediaType) {
       return __async(this, null, function* () {
         try {
@@ -2765,12 +2816,18 @@ var require_extractor = __commonJS({
       return __async(this, null, function* () {
         console.log(`[PelisPanda] Sync-Extracci\xF3n para TMDB: ${tmdbId} (${mediaType})`);
         try {
-          let searchTitle = providedTitle;
-          if (!searchTitle || searchTitle === tmdbId) {
-            searchTitle = yield getFallbackTitle(tmdbId, mediaType);
+          const origin = yield checkOrigin();
+          if (origin.down) {
+            console.log(`[PelisPanda] Origen ${PELISPANDA_BASE} inaccesible (${origin.detail}); Cloudflare no alcanza el origen (HTTP 522). 0 streams devueltos - proveedor limpio, sin reintentos inutiles.`);
+            return [];
           }
-          // Always try TMDB Spanish title — the API only returns results for Spanish titles
+          let searchTitle = providedTitle;
+          // Una sola consulta a TMDB (antes se pedia dos veces el mismo titulo):
+          // la API de wpreact solo devuelve resultados con el titulo en espanol.
           const tmdbTitle = yield getFallbackTitle(tmdbId, mediaType);
+          if (!searchTitle || searchTitle === tmdbId) {
+            searchTitle = tmdbTitle;
+          }
           if (tmdbTitle && tmdbTitle !== searchTitle) {
             searchTitle = tmdbTitle;
           }
@@ -2780,9 +2837,9 @@ var require_extractor = __commonJS({
           }
           const cleanTitle = searchTitle.split(" ").slice(0, 3).join(" ");
           console.log(`[PelisPanda] Consultando API: ${cleanTitle}`);
-          const searchUrl = `https://pelispanda.org/wp-json/wpreact/v1/search?query=${encodeURIComponent(cleanTitle)}`;
+          const searchUrl = `${PELISPANDA_BASE}/wp-json/wpreact/v1/search?query=${encodeURIComponent(cleanTitle)}`;
           const searchData = yield fetchJson(searchUrl, {
-            headers: { "Referer": "https://pelispanda.org/" }
+            headers: { "Referer": PELISPANDA_BASE + "/" }
           });
           if (!searchData || !searchData.results)
             return [];
@@ -2794,9 +2851,9 @@ var require_extractor = __commonJS({
             return [];
           console.log(`[PelisPanda] Seleccionado: ${movieMatch.title} (Slug: ${movieMatch.slug})`);
           const endpointType = mediaType === "movie" ? "movie" : "serie";
-          const playersUrl = `https://pelispanda.org/wp-json/wpreact/v1/${endpointType}/${movieMatch.slug}/related`;
+          const playersUrl = `${PELISPANDA_BASE}/wp-json/wpreact/v1/${endpointType}/${movieMatch.slug}/related`;
           const playersData = yield fetchJson(playersUrl, {
-            headers: { "Referer": "https://pelispanda.org/" }
+            headers: { "Referer": PELISPANDA_BASE + "/" }
           });
           let embeds = [];
           if (mediaType === "movie") {

@@ -63,6 +63,48 @@ const HEADERS = {
     "Connection": "keep-alive"
 };
 
+// ---------------------------------------------------------------------------
+// Origin health, added after the 2026-10-27 mass PHP patch.
+// https://allpeliculas.la answers Cloudflare 522 "origin unreachable" on every
+// path (/, /wp-api/v1/search, /wp-api/v1/player) while the zone itself is still
+// proxied (A 104.21.23.49 / 172.67.209.50) - so the brand has NOT moved to a new
+// home: allpeliculas.com/.net/.io/.to/.ws/.co/.mx are parked or redirect to 403
+// shells, allpeliculas.tv serves a different brand ("Repelis com"), and the live
+// look-alikes (.top XenForo, .lol zetaflix, .shop dooplay) run other stacks with
+// no /wp-api/v1 namespace and put a Cloudflare challenge in front of the API.
+// There is therefore nothing to re-point at; when the origin is back this
+// BASE_URL is still correct and is the only line to change.
+// The memoised probe below keeps getStreams() quiet and cheap during the outage
+// instead of spending 3 TMDB lookups plus several 20s Cloudflare waits per call.
+// ---------------------------------------------------------------------------
+const ORIGIN_PROBE_TIMEOUT_MS = 8000;
+const ORIGIN_PROBE_TTL_MS = 10 * 60 * 1000;
+let originState = { checkedAt: 0, down: false, detail: "unknown" };
+
+async function checkOrigin() {
+    if (originState.down && (Date.now() - originState.checkedAt) < ORIGIN_PROBE_TTL_MS) return originState;
+    const controller = (typeof AbortController === "function") ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => { try { controller.abort(); } catch (e) {} }, ORIGIN_PROBE_TIMEOUT_MS) : null;
+    try {
+        const res = await fetch(`${BASE_URL}/`, {
+            headers: { "User-Agent": USER_AGENT, "Accept": "text/html,application/xhtml+xml,*/*;q=0.8", "Accept-Language": "es-MX,es;q=0.9" },
+            redirect: "follow",
+            signal: controller ? controller.signal : undefined,
+        });
+        if (timer) clearTimeout(timer);
+        const down = res.status >= 500 || res.status === 403;
+        originState = { checkedAt: Date.now(), down, detail: `HTTP ${res.status}` };
+    } catch (e) {
+        if (timer) clearTimeout(timer);
+        originState = {
+            checkedAt: Date.now(),
+            down: true,
+            detail: e && e.name === "AbortError" ? `sin respuesta en ${ORIGIN_PROBE_TIMEOUT_MS / 1000}s` : (e && e.message),
+        };
+    }
+    return originState;
+}
+
 function cleanTitle(title) {
     if (!title) return "";
     return title
@@ -110,7 +152,10 @@ async function searchAllPeliculas(query, type) {
         const url = `${BASE_URL}/wp-api/v1/search?filter=[]&q=${encodeURIComponent(query)}&orderBy=latest&order=desc&postType=${postType}&postsPerPage=20&page=1`;
         console.log(`[AllpeliculasSE] Searching API: ${url}`);
         const res = await fetch(url, { headers: HEADERS });
-        if (!res.ok) return [];
+        if (!res.ok) {
+            console.log(`[AllpeliculasSE] Search API HTTP ${res.status} for "${query}"${res.status >= 500 || res.status === 403 ? " (origin unreachable / Cloudflare)" : ""}`);
+            return [];
+        }
         const data = await res.json();
         if (data && data.data && data.data.posts) {
             return data.data.posts.map(p => ({
@@ -720,7 +765,13 @@ async function resolveEmbed(url) {
 
 async function getStreams(id, type, season, episode) {
     console.log(`[AllpeliculasSE] Resolving stream for ID ${id}, Type ${type}, Season: ${season}, Episode: ${episode}`);
-    
+
+    const origin = await checkOrigin();
+    if (origin.down) {
+        console.log(`[AllpeliculasSE] Source origin ${BASE_URL} is unreachable (${origin.detail}); Cloudflare cannot reach the origin (HTTP 522). Returning 0 streams - provider stays clean, re-point BASE_URL when the site is back.`);
+        return [];
+    }
+
     const info = await getTMDBInfo(id, type);
     if (!info) {
         console.log("[AllpeliculasSE] Failed to retrieve TMDB information.");

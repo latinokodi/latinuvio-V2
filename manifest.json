@@ -115,29 +115,6 @@
       "supportsExternalPlayer": true
     },
     {
-      "id": "fuegocine",
-      "name": "FuegoCine",
-      "description": "Películas y series con enlaces directos y alta velocidad.",
-      "version": "7.0.3",
-      "author": "latinokodi",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "filename": "providers/fuegocine.js",
-      "enabled": true,
-      "logo": "https://www.fuegocine.com/favicon.ico",
-      "contentLanguage": [
-        "es"
-      ],
-      "formats": [
-        "m3u8",
-        "mp4"
-      ],
-      "limited": false,
-      "supportsExternalPlayer": true
-    },
-    {
       "id": "tioplus",
       "name": "TioPlus",
       "description": "Películas y series en HD (Latino) con bypass de doble Base64.",
