@@ -5,10 +5,10 @@
   # Proveedores Latino para Nuvio
 
   [![Version](https://img.shields.io/badge/version-0.2.0-blueviolet?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
-  [![Proveedores](https://img.shields.io/badge/Proveedores-37-blue?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
+  [![Proveedores](https://img.shields.io/badge/Proveedores-23-blue?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
   [![Status](https://img.shields.io/badge/status-active-success?style=for-the-badge)](https://github.com/latinokodi/latinuvio-V2)
 
-  Colección de 37 proveedores HTTP optimizados en **Español Latino y Castellano** para la aplicación **Nuvio**.
+  Colección de 23 proveedores HTTP optimizados en **Español Latino y Castellano** para la aplicación **Nuvio**.
 
 </div>
 
@@ -56,3 +56,5 @@ Visita **[latinokodi.site](https://latinokodi.site)** para tutoriales, comunidad
 Este proyecto y sus scrapers son herramientas independientes creadas exclusivamente con fines educativos y de desarrollo.
 - **Alojamiento de contenido**: Este repositorio **no** aloja, almacena, transmite ni distribuye ningún tipo de archivo multimedia, video o audio en sus servidores. Todos los resolvers y enlaces de streaming presentados son proveídos y hospedados por servidores y plataformas de terceros externas a este proyecto.
 - **Responsabilidad de Uso**: Los autores y colaboradores de este software no asumen responsabilidad alguna por el uso final que los usuarios hagan de este material ni por la estabilidad o legitimidad de los enlaces obtenidos de fuentes de terceros. El uso de estos proveedores queda bajo el propio riesgo y criterio del usuario final.
+
+

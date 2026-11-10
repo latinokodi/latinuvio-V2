@@ -261,20 +261,64 @@ async function resolveDood(embedUrl) {
 
 /** OK.ru / odnoklassniki: videoPlayerMetadata POST. */
 async function resolveOkru(embedUrl) {
-  const id = (embedUrl.match(/(?:ok\.ru|odnoklassniki\.ru)\/(?:videoembed|video|live)\/(\d+)/i) || [])[1];
-  const mid = id || (embedUrl.match(/[?&]mid=(\d+)/i) || [])[1];
+  const idm = String(embedUrl || '').match(/(?:videoembed|video|live)\/(\d+)/i);
+  const mid = idm ? idm[1] : ((String(embedUrl).match(/[?&](?:mid|id)=(\d+)/i) || [])[1] || '');
   if (!mid) return null;
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
   try {
-    const res = await fetch('https://www.ok.ru/dk', {
-      method: 'POST',
-      headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded', 'Referer': `https://ok.ru/videoembed/${mid}`, 'Origin': 'https://ok.ru', 'X-Requested-With': 'XMLHttpRequest' },
-      body: `cmd=videoPlayerMetadata&mid=${mid}`,
-      signal: timeoutSignal(8000),
-    });
-    const data = await res.json().catch(() => null);
-    if (!data || data.error) return null;
-    const u = data.hlsManifestUrl || data.hlsMasterPlaylistUrl || (data.videos && data.videos[0] && data.videos[0].url);
-    return u ? { url: u, server: 'OK.ru', quality: '1080p', headers: { 'User-Agent': UA, 'Referer': 'https://ok.ru/' } } : null;
+    const html = await fetch('https://ok.ru/videoembed/' + mid, {
+      headers: {
+        'User-Agent': ua,
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+        'Referer': 'https://ok.ru/',
+      },
+      signal: timeoutSignal(12000),
+    }).then(function (r) { return r.text(); }).catch(function () { return ''; });
+    if (!html) return null;
+    if (/data-movie-id="null"/i.test(html)) return null;
+    const clean = function (s) {
+      return String(s).replace(/\\u0026/gi, '&').replace(/\\\//g, '/').replace(/&amp;/g, '&').replace(/^\/\//, 'https://');
+    };
+    let hls = null;
+    const opts = html.match(/data-options="([\s\S]*?)"/i);
+    if (opts) {
+      const decoded = opts[1]
+        .replace(/&quot;/g, '"').replace(/&#0?38;/g, '&').replace(/&amp;/g, '&')
+        .replace(/\\"/g, '"').replace(/\\\//g, '/').replace(/\\u0026/gi, '&').replace(/\\\\/g, '\\');
+      try {
+        const data = JSON.parse(decoded);
+        const raw = data && data.flashvars && data.flashvars.metadata;
+        const meta = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
+        hls = meta.hlsManifestUrl || meta.hlsMasterPlaylistUrl || null;
+        const videos = Array.isArray(meta.videos) ? meta.videos : [];
+        if (!hls && videos.length) {
+          const order = ['full', 'hd', 'sd', 'low', 'lowest'];
+          videos.sort(function (a, b) {
+            const ai = order.indexOf(String((a && a.name) || '').toLowerCase());
+            const bi = order.indexOf(String((b && b.name) || '').toLowerCase());
+            return (ai < 0 ? 99 : ai) - (bi < 0 ? 99 : bi);
+          });
+          const v = videos.find(function (x) { return x && x.url; });
+          if (v) {
+            const name = String(v.name || '').toLowerCase();
+            return {
+              url: clean(v.url), server: 'OK.ru',
+              quality: name.indexOf('full') >= 0 ? '1080p' : name.indexOf('hd') >= 0 ? '720p' : name.indexOf('sd') >= 0 ? '480p' : '360p',
+              headers: { 'User-Agent': ua, 'Referer': 'https://ok.ru/', 'Origin': 'https://ok.ru' },
+            };
+          }
+        }
+      } catch (e) {}
+    }
+    if (!hls) {
+      const hm = html.match(/"hlsManifestUrl"\s*:\s*"([^"]+)"/);
+      if (hm) hls = hm[1];
+    }
+    if (!hls) return null;
+    let url = clean(hls);
+    if (url.indexOf('//') === 0) url = 'https:' + url;
+    return { url: url, server: 'OK.ru', quality: '1080p', headers: { 'User-Agent': ua, 'Referer': 'https://ok.ru/', 'Origin': 'https://ok.ru' } };
   } catch (e) { return null; }
 }
 
@@ -437,9 +481,57 @@ async function resolveEmbed(embedUrl) {
   return null;
 }
 
+/** Fastream resolver (fastream.to): packer/m3u8 extraction; the CDN needs Accept-Language. */
+async function resolveFastream(embedUrl) {
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+  const headers = {
+    'User-Agent': ua,
+    'Referer': 'https://fastream.to/',
+    'Origin': 'https://fastream.to',
+    'Accept': '*/*',
+    'Accept-Language': 'es-MX,es;q=0.9,en;q=0.8',
+  };
+  const playbackHeaders = { 'User-Agent': ua, 'Referer': 'https://fastream.to/', 'Accept-Language': headers['Accept-Language'] };
+  const qualityOf = function (u) {
+    u = String(u).toLowerCase();
+    return u.indexOf('1080') >= 0 ? '1080p' : u.indexOf('720') >= 0 ? '720p' : u.indexOf('480') >= 0 ? '480p' : u.indexOf('360') >= 0 ? '360p' : 'HD';
+  };
+  if (/\.m3u8/i.test(embedUrl)) return { url: embedUrl, server: 'Fastream', quality: qualityOf(embedUrl), headers: playbackHeaders };
+  try {
+    const html = await fetch(embedUrl, { headers: headers, signal: timeoutSignal(15000) }).then(function (r) { return r.text(); });
+    let code = html;
+    const packed = html.match(/eval\(function\(p,a,c,k,e,[dr]\)\{[\s\S]*?\}\('([\s\S]*?)',(\d+),(\d+),'([\s\S]*?)'\.split\('\|'\)/);
+    if (packed) code = unpackPacker(packed[1], parseInt(packed[2], 10), parseInt(packed[3], 10), packed[4].split('|'));
+    let m = code.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i) || html.match(/(https?:\/\/[^"'\s]+\.m3u8[^"'\s]*)/i);
+    if (!m) {
+      const fm = code.match(/file\s*:\s*["']([^"']+)["']/i) || html.match(/file\s*:\s*["']([^"']+)["']/i);
+      if (fm) m = [null, fm[1]];
+    }
+    if (!m) return null;
+    let url = m[1];
+    if (url.indexOf('//') === 0) url = 'https:' + url;
+    return { url: url, server: 'Fastream', quality: qualityOf(url), headers: playbackHeaders };
+  } catch (e) { return null; }
+}
+
+function unpackPacker(p, a, c, k) {
+  try {
+    while (c--) { if (k[c]) p = p.replace(new RegExp('\\b' + intToBase(c, a) + '\\b', 'g'), k[c]); }
+    return p;
+  } catch (e) { return p; }
+}
+
+function intToBase(n, base) {
+  const alphabet = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if (n === 0) return alphabet[0];
+  let out = '';
+  while (n > 0) { out = alphabet[n % base] + out; n = Math.floor(n / base); }
+  return out;
+}
+
 module.exports = {
   resolveUqload, resolveGoodstream, resolveVimeos, resolveBysezoxexe, resolveAudinifer,
-  resolveVidara, resolveVoe, resolveStreamWish, resolveVidHide, resolveDood, resolveOkru,
+  resolveVidara, resolveFastream, resolveVoe, resolveStreamWish, resolveVidHide, resolveDood, resolveOkru,
   resolveEmbed, validateStream, isPlayableMediaUrl, isKnownFakeDirectUrl, detectHlsQuality, fetchPage,
   decodeEmbedShortener, resolvePrimeload, resolveGenericPage, base64Decode,
 };
